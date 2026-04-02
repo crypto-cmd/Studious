@@ -1,7 +1,6 @@
 import os
 import json
 from dotenv import load_dotenv
-from google import genai
 
 import os
 
@@ -42,8 +41,7 @@ class PromptChunker:
             )
             response = chat_completion.choices[0].message.content
 
-            json_string = json.dumps(response)
-            data = json.loads(json_string)
+            data = json.loads(response)
             return data
         #how to parse json objects using regular expressions in python
 
@@ -63,19 +61,55 @@ class PromptChunker:
         updated_task_list = [task for task in task_list if task["task"] != task_to_remove]
         return updated_task_list
 
+    def mark_task_complete(self, task_list, index):
+        if 0 <= index < len(task_list):
+            task_list[index]["completed"] = True
+                
+    def show_progress(self, earned_xp, total_xp):
+        bar = int((earned_xp / total_xp) * 10) * "█" if total_xp > 0 else ""
+        print(f"\nProgress: [{bar:<10}] {earned_xp}/{total_xp} XP")
 
         
+# ================= MAIN =================
 if __name__ == "__main__":
 
-    instruction = "Write a report on the current effects of slavery in Jamaica, making reference to Chapters 3-5."
-
+    instruction = input("Enter your instruction: ")
     task_instance = PromptChunker(instruction)
 
-    ai_output = task_instance.get_tasks_from_ai(instruction)
-    task_list = json.loads(ai_output)
-    task_amount = task_instance.task_counter(task_list)
-    xp_total = task_instance.xp_calculator(task_list)
+    try:
+        task_list = task_instance.get_tasks_from_ai(instruction)
 
-    print(task_list)
-    print(task_amount)
-    print(xp_total)
+        # Add completion field
+        for task in task_list:
+            task["completed"] = False
+
+        while True:
+            print("\n Task List:\n")
+
+            for i, task in enumerate(task_list, start=1):
+                status = "✔" if task["completed"] else " "
+                print(f"{i}. [{status}] {task['task']} ({task['xp']} XP)")
+
+            total_xp = task_instance.xp_calculator(task_list)
+            earned_xp = sum(task["xp"] for task in task_list if task["completed"])
+
+            print("\n Summary:")
+            print(f"Total Tasks: {len(task_list)}")
+            print(f"Total XP: {total_xp}/100")
+
+            task_instance.show_progress(earned_xp, total_xp)
+
+            user_input = input(
+                "\nEnter task number to complete (or 'q' to quit): "
+            )
+
+            if user_input.lower() == 'q':
+                break
+
+            if user_input.isdigit():
+                index = int(user_input) - 1
+                task_instance.mark_task_complete(task_list, index)
+
+    except Exception as e:
+        print("\n Error generating tasks:")
+        print(e)
