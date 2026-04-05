@@ -1,3 +1,4 @@
+import uuid
 import os
 import json
 from dotenv import load_dotenv
@@ -43,6 +44,10 @@ class PromptChunker:
             response = chat_completion.choices[0].message.content
 
             data = json.loads(response)
+            for item in data:
+                item["id"] = str(uuid.uuid4())
+                item["completed"] = False
+                
             return data
         #how to parse json objects using regular expressions in python
 
