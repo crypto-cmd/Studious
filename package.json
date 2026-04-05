@@ -1,0 +1,8 @@
+{
+    "scripts": {
+        "backend:init": "cd backend && uv pip install -r requirements.txt",
+        "backend:run": "cd backend && uv run main.py",
+        "frontend:init": "cd frontend && bun install",
+        "frontend:run": "cd frontend && bun run start"
+    }
+}
