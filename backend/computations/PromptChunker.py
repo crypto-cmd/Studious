@@ -38,6 +38,7 @@ class PromptChunker:
                     }
                 ],
                 model="llama-3.3-70b-versatile",
+                temperature=0
             )
             response = chat_completion.choices[0].message.content
 
