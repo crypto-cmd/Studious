@@ -1,34 +1,71 @@
-# dependencies (bun install)
-node_modules
-
-# output
-out
-dist
-*.tgz
-
-# code coverage
-coverage
-*.lcov
-
-# logs
-logs
-_.log
-report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
-
-# dotenv environment variable files
-.env
-.env.development.local
-.env.test.local
-.env.production.local
-.env.local
-
-# caches
-.eslintcache
-.cache
-*.tsbuildinfo
-
-# IntelliJ based IDEs
-.idea
-
-# Finder (MacOS) folder config
+# ---------------------------
+# Global OS / editor artifacts
+# ---------------------------
 .DS_Store
+Thumbs.db
+
+.idea/
+.vscode/
+
+# ---------------------------
+# Python (backend)
+# ---------------------------
+**/__pycache__/
+**/*.py[cod]
+**/*.pyo
+**/*.pyd
+
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.hypothesis/
+**/.coverage
+**/.coverage.*
+**/htmlcov/
+
+# Virtual environments
+**/.venv/
+**/venv/
+
+# Packaging / build outputs
+**/build/
+**/dist/
+**/*.egg-info/
+
+# ---------------------------
+# JavaScript / TypeScript (frontend, marketing)
+# ---------------------------
+**/node_modules/
+**/.next/
+**/.nuxt/
+**/.svelte-kit/
+**/out/
+**/coverage/
+**/*.tsbuildinfo
+**/.eslintcache
+**/.cache/
+
+# Build artifacts
+**/dist/
+**/*.tgz
+
+# ---------------------------
+# Environment & local secrets
+# ---------------------------
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Keep checked-in examples if present
+!**/.env.example
+!**/.env.*.example
+
+# ---------------------------
+# Logs & runtime temp
+# ---------------------------
+**/logs/
+**/*.log
+**/report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+*.pid
+*.seed
+*.stackdump
