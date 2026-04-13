@@ -38,8 +38,16 @@ def improve_grade(student_id, course_code):
             "study_hours_per_day": info[2]["study_hours_per_day"],
         },
         "predicted_improved_grade": info[3],
+        "improvements": {
+            "attendance_percentage": round(info[2]["attendance_percentage"] - info[0]["attendance_percentage"], 2),
+            "sleep_hours": round(info[2]["sleep_hours"] - info[0]["sleep_hours"], 2),
+            "exercise_frequency": round(info[2]["exercise_frequency"] - info[0]["exercise_frequency"], 2),
+            "mental_health_rating": round(info[2]["mental_health_rating"] - info[0]["mental_health_rating"], 2),
+            "study_hours_per_day": round(info[2]["study_hours_per_day"] - info[0]["study_hours_per_day"], 2),
+            "grade_improvement": round(info[3] - info[1], 2)
+        }
     }
-    
+
 def _get_student_grade_input(student_id, course_code):
     prelim_data = db.table("students").select("age, gender").eq("id", student_id).execute()
     

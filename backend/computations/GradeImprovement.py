@@ -23,7 +23,7 @@ class GradeImprovement:
         grade = self.gradepredictor.predict_grade(profile)
 
         delta_grade = grade - self.current_grade
-        delta_effort = abs(attendance - self.student_profile["attendance_percentage"]) + abs(sleep - self.student_profile["sleep_hours"]) + abs(exercise - self.student_profile["exercise_frequency"]) + abs(study - self.student_profile["study_hours_per_day"])
+        delta_effort = abs(attendance - self.student_profile["attendance_percentage"]) + 2 * abs(sleep - self.student_profile["sleep_hours"]) + abs(exercise - self.student_profile["exercise_frequency"]) + abs(study - self.student_profile["study_hours_per_day"])
 
         if delta_grade <= 0:
             return -10000
@@ -38,7 +38,7 @@ class GradeImprovement:
         for genome, grade in zip(population, predicted_grades):
             attendance, sleep, exercise, study = genome
             delta_grade = grade - self.current_grade
-            delta_effort = abs(attendance - self.student_profile["attendance_percentage"]) + abs(sleep - self.student_profile["sleep_hours"]) + abs(exercise - self.student_profile["exercise_frequency"]) + abs(study - self.student_profile["study_hours_per_day"])
+            delta_effort = abs(attendance - self.student_profile["attendance_percentage"]) + 2 * abs(sleep - self.student_profile["sleep_hours"]) + abs(exercise - self.student_profile["exercise_frequency"]) + abs(study - self.student_profile["study_hours_per_day"])
 
             if delta_grade <= 0:
                 fitness_scores.append(-10000)
@@ -86,7 +86,7 @@ class GradeImprovement:
                 genome[index] = max(0, min(8, genome[index]))
         return genome
 
-    def genetic_algorithm(self, population_size=20, generations=5):
+    def genetic_algorithm(self, population_size=100, generations=50):
         population = self.create_population(population_size)
 
         for generation in range(generations):
@@ -119,4 +119,13 @@ class GradeImprovement:
 
         best_genome, _, best_grade = ranked_population[0]
         profile = self._profile_from_genome(best_genome)
+        if abs(best_genome[0] - self.student_profile["attendance_percentage"]) < 1:
+            profile["attendance_percentage"] = self.student_profile["attendance_percentage"]
+        if abs(best_genome[1] - self.student_profile["sleep_hours"]) < 0.5:
+            profile["sleep_hours"] = self.student_profile["sleep_hours"]
+        if abs(best_genome[2] - self.student_profile["exercise_frequency"]) < 0.8:
+            profile["exercise_frequency"] = self.student_profile["exercise_frequency"]
+        if abs(best_genome[3] - self.student_profile["study_hours_per_day"]) < 0.15:
+            profile["study_hours_per_day"] = self.student_profile["study_hours_per_day"]
+        
         return self.student_profile, self.current_grade, profile, best_grade
