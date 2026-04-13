@@ -7,11 +7,19 @@ class GradeImprovement:
         self.gradepredictor = GradePredictor()
         self.current_grade = self.gradepredictor.predict_grade(student_profile)
 
+    def _profile_from_genome(self, genome):
+        attendance, sleep, exercise, study = genome
+        return {
+            **self.student_profile,
+            "attendance_percentage": attendance,
+            "sleep_hours": sleep,
+            "exercise_frequency": exercise,
+            "study_hours_per_day": study,
+        }
+
     def fitness(self, genome):
         attendance, sleep, exercise, study = genome
-
-        profile = {**self.student_profile, "attendance_percentage": attendance, "sleep_hours": sleep, "exercise_frequency": exercise, "study_hours_per_day": study}
-        # Simulated grade model (you can improve this)
+        profile = self._profile_from_genome(genome)
         grade = self.gradepredictor.predict_grade(profile)
 
         delta_grade = grade - self.current_grade
@@ -21,6 +29,23 @@ class GradeImprovement:
             return -10000
             
         return delta_grade * 10 - delta_effort * 100
+
+    def batch_fitness(self, population):
+        profiles = [self._profile_from_genome(genome) for genome in population]
+        predicted_grades = self.gradepredictor.predict_grades(profiles)
+
+        fitness_scores = []
+        for genome, grade in zip(population, predicted_grades):
+            attendance, sleep, exercise, study = genome
+            delta_grade = grade - self.current_grade
+            delta_effort = abs(attendance - self.student_profile["attendance_percentage"]) + abs(sleep - self.student_profile["sleep_hours"]) + abs(exercise - self.student_profile["exercise_frequency"]) + abs(study - self.student_profile["study_hours_per_day"])
+
+            if delta_grade <= 0:
+                fitness_scores.append(-10000)
+            else:
+                fitness_scores.append(delta_grade * 10 - delta_effort * 100)
+
+        return fitness_scores, predicted_grades
 
 
     def create_genome(self):
@@ -34,9 +59,9 @@ class GradeImprovement:
     def create_population(self, size):
         return [self.create_genome() for _ in range(size)]
 
-    def select(self, population):
-        population = sorted(population, key=self.fitness, reverse=True)
-        return population[:len(population) // 2]
+    def select(self, ranked_population):
+        selected_count = max(1, len(ranked_population) // 2)
+        return [genome for genome, _, _ in ranked_population[:selected_count]]
 
     def crossover(self, parent1, parent2):
         return [
@@ -65,11 +90,16 @@ class GradeImprovement:
         population = self.create_population(population_size)
 
         for generation in range(generations):
-            
-            population = sorted(population, key=self.fitness, reverse=True)
-            print(f"Generation {generation}: Best fitness = {self.fitness(population[0]):.4f}")
+            fitness_scores, predicted_grades = self.batch_fitness(population)
+            ranked_population = sorted(
+                zip(population, fitness_scores, predicted_grades),
+                key=lambda item: item[1],
+                reverse=True,
+            )
+            population = [genome for genome, _, _ in ranked_population]
+            print(f"Generation {generation}: Best fitness = {ranked_population[0][1]:.4f}")
 
-            selected = self.select(population)
+            selected = self.select(ranked_population)
 
             next_generation = population[:5]
             while len(next_generation) < population_size:
@@ -80,6 +110,13 @@ class GradeImprovement:
 
             population = next_generation
 
-        population = sorted(population, key=self.fitness, reverse=True)
-        profile = {**self.student_profile, "attendance_percentage": population[0][0], "sleep_hours": population[0][1], "exercise_frequency": population[0][2], "study_hours_per_day": population[0][3]}
-        return self.student_profile, self.current_grade, profile, self.gradepredictor.predict_grade(profile)
+        fitness_scores, predicted_grades = self.batch_fitness(population)
+        ranked_population = sorted(
+            zip(population, fitness_scores, predicted_grades),
+            key=lambda item: item[1],
+            reverse=True,
+        )
+
+        best_genome, _, best_grade = ranked_population[0]
+        profile = self._profile_from_genome(best_genome)
+        return self.student_profile, self.current_grade, profile, best_grade

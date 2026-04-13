@@ -61,18 +61,25 @@ class GradePredictor:
 		self.model_path = str(self._resolve_model_path(model_path))
 		self.model = self._load_keras_model(self.model_path)
 
-	def predict_grade(self, student_data: dict[str, Any]) -> float:
-		"""Returns a single predicted grade as a float."""
-		validated = self._validate_input(student_data)
-		model_input = self._prepare_features(validated)
-		prediction = self.model.predict(model_input, verbose=0)
+	def predict_grade(self, student_data: dict[str, Any] | list[dict[str, Any]]) -> float | list[float]:
+		"""Predict a grade for one profile or a list of grades for many profiles."""
+		if isinstance(student_data, list):
+			return self.predict_grades(student_data)
 
-		if isinstance(prediction, (list, tuple)):
-			first = prediction[0]
-			if isinstance(first, (list, tuple)):
-				return float(first[0])
-			return float(first)
-		return float(prediction)
+		validated = self._validate_input(student_data)
+		model_input = self._prepare_features_batch([validated])
+		predictions = self.model.predict(model_input, verbose=0)
+		return self._extract_predictions(predictions)[0]
+
+	def predict_grades(self, students_data: list[dict[str, Any]]) -> list[float]:
+		"""Returns predicted grades for a batch of student profiles."""
+		if not students_data:
+			return []
+
+		validated_batch = [self._validate_input(student) for student in students_data]
+		model_input = self._prepare_features_batch(validated_batch)
+		predictions = self.model.predict(model_input, verbose=0)
+		return self._extract_predictions(predictions)
 
 	def _validate_input(self, student_data: dict[str, Any]) -> dict[str, Any]:
 		missing_fields = self.REQUIRED_FIELDS - student_data.keys()
@@ -108,7 +115,7 @@ class GradePredictor:
 
 		return validated
 
-	def _prepare_features(self, validated: dict[str, Any]):
+	def _prepare_features_batch(self, validated_batch: list[dict[str, Any]]):
 		"""
 		Builds a 3-hot gender encoded feature vector in training feature order,
 		then applies standard scaling:
@@ -126,26 +133,33 @@ class GradePredictor:
 				f"but got {input_width}."
 			)
 
-		gender = validated["gender"]
-		female = 1.0 if gender == "female" else 0.0
-		male = 1.0 if gender == "male" else 0.0
-		other = 1.0 if gender == "other" else 0.0
+		rows: list[list[float]] = []
+		for validated in validated_batch:
+			gender = validated["gender"]
+			female = 1.0 if gender == "female" else 0.0
+			male = 1.0 if gender == "male" else 0.0
+			other = 1.0 if gender == "other" else 0.0
 
-		features = [
-			float(validated["age"]),
-			float(validated["attendance_percentage"]),
-			float(validated["sleep_hours"]),
-			float(validated["exercise_frequency"]),
-			float(validated["mental_health_rating"]),
-			float(validated["study_hours_per_day"]),
-			female,
-			male,
-			other,
-		]
+			rows.append([
+				float(validated["age"]),
+				float(validated["attendance_percentage"]),
+				float(validated["sleep_hours"]),
+				float(validated["exercise_frequency"]),
+				float(validated["mental_health_rating"]),
+				float(validated["study_hours_per_day"]),
+				female,
+				male,
+				other,
+			])
 
-		x = np.array(features, dtype=np.float32)
+		x = np.array(rows, dtype=np.float32)
 		x_scaled = (x - self.SCALER_MEAN) / self.SCALER_SCALE
-		return np.array([x_scaled], dtype=np.float32)
+		return x_scaled
+
+	@staticmethod
+	def _extract_predictions(prediction: Any) -> list[float]:
+		arr = np.asarray(prediction).reshape(-1)
+		return [float(v) for v in arr]
 
 	def _infer_input_width(self) -> int:
 		input_shape = self.model.input_shape
