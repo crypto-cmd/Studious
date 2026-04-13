@@ -26,7 +26,7 @@ def predict_course_grade(student_id, course_code):
         return {"error": "Student course data not found"}, 404
 
     try:
-        predicted_grade = _get_grade_predictor().predict_grade(student_data)
+        predicted_grade = GradePredictor().predict_grade(student_data)
     except ValueError as exc:
         return {"error": str(exc)}, 400
     except RuntimeError as exc:
@@ -47,7 +47,7 @@ def predict_and_save_course_grade(student_id, course_code):
         return {"error": "Student course data not found"}, 404
 
     try:
-        predicted_grade = _get_grade_predictor().predict_grade(student_data)
+        predicted_grade = GradePredictor().predict_grade(student_data)
     except ValueError as exc:
         return {"error": str(exc)}, 400
     except RuntimeError as exc:
@@ -85,8 +85,3 @@ def _get_student_grade_input(student_id, course_code):
     return {field: student_row.get(field) for field in _GRADE_INPUT_FIELDS}
 
 
-def _get_grade_predictor():
-    global grade_predictor
-    if grade_predictor is None:
-        grade_predictor = GradePredictor()
-    return grade_predictor
