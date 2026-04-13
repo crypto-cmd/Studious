@@ -52,3 +52,5 @@ def complete_task(student_id, course_code, assignment_id, task_id):
     db.table("assignments").update({"tasks": tasks}).eq("id", assignment_id).execute()
 
     return {"message": "Task marked as completed"}
+
+
