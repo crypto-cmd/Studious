@@ -10,6 +10,25 @@ import TaskManager from "./pages/TasksManager";
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>("home");
 
+  const handleTabChange = (tab: TabId) => {
+    if (tab === activeTab) {
+      return;
+    }
+
+    const docWithTransition = document as Document & {
+      startViewTransition?: (update: () => void) => void;
+    };
+
+    if (typeof docWithTransition.startViewTransition === "function") {
+      docWithTransition.startViewTransition(() => {
+        setActiveTab(tab);
+      });
+      return;
+    }
+
+    setActiveTab(tab);
+  };
+
   const activeContent = useMemo(() => {
     switch (activeTab) {
       case "home":
@@ -44,8 +63,10 @@ export default function App() {
 
   return (
     <AppShell>
-      {activeContent}
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <div key={activeTab} className="tab-page-enter">
+        {activeContent}
+      </div>
+      <BottomNav activeTab={activeTab} onTabChange={handleTabChange} />
     </AppShell>
   );
 }
