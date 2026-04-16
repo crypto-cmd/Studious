@@ -27,8 +27,8 @@ function NavItem({ icon, id, activeTab, onClick }: NavItemProps) {
             aria-label={id}
             aria-pressed={isActive}
             className={`p-3 rounded-full transition-all duration-300 ${isActive
-                    ? "text-cyan-400 bg-[#1b3f3a]"
-                    : "text-gray-400 hover:text-white hover:bg-[#132e2a]"
+                ? "text-cyan-400 bg-[#1b3f3a]"
+                : "text-gray-400 hover:text-white hover:bg-[#132e2a]"
                 }`}
         >
             {React.cloneElement(icon, { className: "w-6 h-6" })}
