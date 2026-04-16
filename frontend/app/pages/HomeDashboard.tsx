@@ -16,6 +16,11 @@ type Day = {
   isActive: boolean;
 };
 
+type HomeDashboardProps = {
+  studentName: string | null;
+  studentId: string | number | null;
+};
+
 // --- Mock Data ---
 const courses: Course[] = [
   { code: 'COMP3901', grade: '95%', trend: 'up', examDate: 'April 3rd, 2026', countdown: '3 months' },
@@ -32,15 +37,19 @@ const currentWeek: Day[] = [
   { dayStr: 'Sun', date: 22, isActive: false },
 ];
 
-export default function HomeDashboard() {
+export default function HomeDashboard({ studentName, studentId }: HomeDashboardProps) {
+  const displayName = studentName?.trim() || "Student";
+  const displayId = studentId == null ? "Unknown" : String(studentId).trim() || "Unknown";
+
   return (
     <>
 
       <header className="flex items-center gap-2 mb-6">
         <Brain className="text-cyan-400 w-8 h-8" />
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight">Hi Olu,</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight">Hi {displayName},</h1>
           <p className="text-gray-400 text-sm">Welcome back</p>
+          <p className="text-gray-500 text-xs mt-1 break-all">ID: {displayId}</p>
         </div>
       </header>
 
@@ -58,8 +67,8 @@ export default function HomeDashboard() {
             <div
               key={day.date}
               className={`flex flex-col items-center justify-center p-2 rounded-xl min-w-[45px] transition-colors ${day.isActive
-                  ? 'bg-cyan-400 text-[#091f1c] font-bold shadow-md'
-                  : 'text-gray-400 hover:bg-[#1b3f3a]'
+                ? 'bg-cyan-400 text-[#091f1c] font-bold shadow-md'
+                : 'text-gray-400 hover:bg-[#1b3f3a]'
                 }`}
             >
               <span className="text-xs mb-1">{day.dayStr}</span>
