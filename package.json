@@ -3,6 +3,8 @@
         "backend:init": "cd backend && ([ -d \".venv\" ] || uv venv) &&uv pip install -r requirements.txt",
         "backend:run": "cd backend && uv run main.py",
         "frontend:init": "cd frontend && bun install",
-        "frontend:run": "cd frontend && bun run start"
+        "frontend:run": "cd frontend && bun run start",
+        "frontend:dev": "cd frontend && bun run dev",
+        "dev": "npx concurrently \"bun run backend:run\" \"bun run frontend:dev\""
     }
 }
