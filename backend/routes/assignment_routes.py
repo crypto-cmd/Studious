@@ -6,6 +6,7 @@ assignment_bp = Blueprint('assignment_bp', __name__)
 # Define a route for the home page
 @assignment_bp.route("/<student_id>/<course_code>/create_assignment", methods=["POST"])
 def create_assignment(student_id, course_code):
+    assignment_title = request.get_json().get('title')
     instructions = request.get_json().get('instructions')
     from computations.PromptChunker import PromptChunker
 
@@ -19,10 +20,12 @@ def create_assignment(student_id, course_code):
     saveto_db = db.table("assignments").insert({
         "student_id": student_id,
         "course_code": course_code,
+        "title": assignment_title,
         "tasks": tasks,
     }).execute()
 
     return {
+        "title": assignment_title
         "tasks": tasks,
         "task_count": task_count,
         "total_xp": total_xp
