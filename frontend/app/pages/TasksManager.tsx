@@ -19,6 +19,29 @@ type Assignment = {
   tasks: MicroTask[];
 };
 
+function normalizeAssignments(payload: unknown): Assignment[] {
+  const asRecord = payload as Record<string, unknown>;
+  const assignmentsRaw = asRecord?.assignments;
+
+  if (!Array.isArray(assignmentsRaw)) {
+    return [];
+  }
+
+  return assignmentsRaw.map((a: any) => ({
+    id: String(a.id),
+    title: typeof a.title === 'string' ? a.title : '',
+    instructions: typeof a.instructions === 'string' ? a.instructions : '',
+    tasks: Array.isArray(a.tasks)
+      ? a.tasks.map((t: any, idx: number) => ({
+        id: typeof t.id === 'string' ? t.id : `${a.id}-${idx}`,
+        description: typeof t.task === 'string' ? t.task : 'Untitled task',
+        xp: Number.isFinite(Number(t.xp)) ? Number(t.xp) : 0,
+        completed: Boolean(t.completed),
+      }))
+      : [],
+  }));
+}
+
 function normalizeCourseCodes(payload: unknown): string[] {
   const asRecord = payload as Record<string, unknown>;
 
@@ -63,13 +86,19 @@ export default function TaskManager() {
   const [courses, setCourses] = useState<string[]>([]);
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedAssignmentId, setSelectedAssignmentId] = useState('');
+  const [assignmentTitle, setAssignmentTitle] = useState('');
   const [assignment, setAssignment] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
+  const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
+  const [completingTaskKeys, setCompletingTaskKeys] = useState<string[]>([]);
+  const [reloadAssignmentsKey, setReloadAssignmentsKey] = useState(0);
+  const [globalCompletedCount, setGlobalCompletedCount] = useState(0);
+  const [globalTaskCount, setGlobalTaskCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const toggleTask = (assignmentId: string, taskId: string) => {
+  const markTaskCompletedLocally = (assignmentId: string, taskId: string) => {
     setAssignments((prev) => prev.map((currentAssignment) => {
       if (currentAssignment.id !== assignmentId) {
         return currentAssignment;
@@ -78,16 +107,103 @@ export default function TaskManager() {
       return {
         ...currentAssignment,
         tasks: currentAssignment.tasks.map((task) => (
-          task.id === taskId ? { ...task, completed: !task.completed } : task
+          task.id === taskId ? { ...task, completed: true } : task
         )),
       };
     }));
   };
 
+  const handleCompleteTask = async (assignmentId: string, taskId: string, alreadyCompleted: boolean) => {
+    if (alreadyCompleted || studentId == null || !selectedCourse) {
+      return;
+    }
+
+    const taskKey = `${assignmentId}:${taskId}`;
+    if (completingTaskKeys.includes(taskKey)) {
+      return;
+    }
+
+    setCompletingTaskKeys((prev) => [...prev, taskKey]);
+    setErrorMessage(null);
+
+    try {
+      const studentIdValue = String(studentId);
+      const response = await fetch(
+        `/api/tasks?student_id=${encodeURIComponent(studentIdValue)}&course_code=${encodeURIComponent(selectedCourse)}&assignment_id=${encodeURIComponent(assignmentId)}&task_id=${encodeURIComponent(taskId)}`,
+        {
+          method: 'PATCH',
+        }
+      );
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error ?? 'Unable to complete task');
+      }
+
+      markTaskCompletedLocally(assignmentId, taskId);
+      setGlobalCompletedCount((prev) => prev + 1);
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to complete task');
+    } finally {
+      setCompletingTaskKeys((prev) => prev.filter((key) => key !== taskKey));
+    }
+  };
+
   const selectedAssignment = assignments.find((currentAssignment) => currentAssignment.id === selectedAssignmentId) ?? null;
   const visibleTasks = selectedAssignment?.tasks ?? [];
 
-  const completedCount = visibleTasks.filter(t => t.completed).length;
+  const handleCreateAssignment = async () => {
+    if (studentId == null || !selectedCourse) {
+      setErrorMessage('Select a course before creating an assignment.');
+      return;
+    }
+
+    const title = assignmentTitle.trim();
+    const instructions = assignment.trim();
+    if (!title) {
+      setErrorMessage('Enter an assignment title first.');
+      return;
+    }
+
+    if (!instructions) {
+      setErrorMessage('Paste assignment instructions first.');
+      return;
+    }
+
+    setIsCreatingAssignment(true);
+    setErrorMessage(null);
+
+    try {
+      const studentIdValue = String(studentId);
+      const response = await fetch(
+        `/api/tasks?student_id=${encodeURIComponent(studentIdValue)}&course_code=${encodeURIComponent(selectedCourse)}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title,
+            instructions,
+            due_date: dueDate || null,
+          }),
+        }
+      );
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error ?? 'Unable to create assignment');
+      }
+
+      setAssignmentTitle('');
+      setAssignment('');
+      setReloadAssignmentsKey((prev) => prev + 1);
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : 'Unable to create assignment');
+    } finally {
+      setIsCreatingAssignment(false);
+    }
+  };
 
   useEffect(() => {
     if (studentId == null) {
@@ -149,21 +265,7 @@ export default function TaskManager() {
           throw new Error(data?.error ?? 'Unable to load assignments');
         }
 
-        const normalizedAssignments: Assignment[] = Array.isArray(data?.assignments)
-          ? data.assignments.map((a: any) => ({
-            id: String(a.id),
-            title: typeof a.title === 'string' ? a.title : '',
-            instructions: typeof a.instructions === 'string' ? a.instructions : '',
-            tasks: Array.isArray(a.tasks)
-              ? a.tasks.map((t: any, idx: number) => ({
-                id: typeof t.id === 'string' ? t.id : `${a.id}-${idx}`,
-                description: typeof t.task === 'string' ? t.task : 'Untitled task',
-                xp: Number.isFinite(Number(t.xp)) ? Number(t.xp) : 0,
-                completed: Boolean(t.completed),
-              }))
-              : [],
-          }))
-          : [];
+        const normalizedAssignments = normalizeAssignments(data);
 
         setAssignments(normalizedAssignments);
         setSelectedAssignmentId((currentId) => {
@@ -181,7 +283,46 @@ export default function TaskManager() {
       .finally(() => {
         setIsLoadingAssignments(false);
       });
-  }, [selectedCourse, studentId]);
+  }, [reloadAssignmentsKey, selectedCourse, studentId]);
+
+  useEffect(() => {
+    if (studentId == null || courses.length === 0) {
+      setGlobalCompletedCount(0);
+      setGlobalTaskCount(0);
+      return;
+    }
+
+    const studentIdValue = String(studentId);
+
+    Promise.all(
+      courses.map(async (courseCode) => {
+        const response = await fetch(
+          `/api/tasks?student_id=${encodeURIComponent(studentIdValue)}&course_code=${encodeURIComponent(courseCode)}`,
+          {
+            cache: 'no-store',
+          }
+        );
+
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error ?? `Unable to load assignments for ${courseCode}`);
+        }
+
+        return normalizeAssignments(payload);
+      })
+    )
+      .then((results) => {
+        const allAssignments = results.flat();
+        const allTasks = allAssignments.flatMap((assignmentItem) => assignmentItem.tasks);
+        const completedTasks = allTasks.filter((task) => task.completed).length;
+
+        setGlobalCompletedCount(completedTasks);
+        setGlobalTaskCount(allTasks.length);
+      })
+      .catch((error: unknown) => {
+        setErrorMessage(error instanceof Error ? error.message : 'Unable to load global task stats');
+      });
+  }, [courses, reloadAssignmentsKey, studentId]);
 
   return (
     <>
@@ -194,7 +335,7 @@ export default function TaskManager() {
         <p className="text-gray-400 text-sm mt-1">Break down overwhelming assignments.</p>
       </header>
 
-      <XpBanner level={5} xp={67} completed={completedCount} total={visibleTasks.length} />
+      <XpBanner level={5} xp={67} completed={globalCompletedCount} total={globalTaskCount} />
 
       <section className="bg-[#132e2a] rounded-3xl p-5 mb-6 border border-[#1b3f3a] shadow-lg">
         <div className="mb-4">
@@ -215,6 +356,17 @@ export default function TaskManager() {
               ))
             )}
           </select>
+        </div>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-300 mb-2">Assignment Title</label>
+          <input
+            type="text"
+            value={assignmentTitle}
+            onChange={(e) => setAssignmentTitle(e.target.value)}
+            placeholder="e.g. Slavery in Jamaica Research Report"
+            className="w-full bg-[#0a1816] text-white rounded-xl p-3 border border-[#1b3f3a] focus:outline-none focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all text-sm"
+          />
         </div>
 
         <div className="mb-4">
@@ -239,9 +391,14 @@ export default function TaskManager() {
           </div>
         </div>
 
-        <button className="w-full bg-cyan-500 hover:bg-cyan-400 text-[#091f1c] font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
+        <button
+          type="button"
+          onClick={handleCreateAssignment}
+          disabled={isCreatingAssignment || !selectedCourse || !assignmentTitle.trim() || !assignment.trim()}
+          className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:bg-cyan-700/50 disabled:text-gray-300 disabled:cursor-not-allowed text-[#091f1c] font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+        >
           <Sparkles className="w-5 h-5" />
-          Break It Down 🧩
+          {isCreatingAssignment ? 'Creating...' : 'Break It Down 🧩'}
         </button>
       </section>
 
@@ -285,32 +442,42 @@ export default function TaskManager() {
         {errorMessage && <p className="text-sm text-red-300 px-2 mb-3">{errorMessage}</p>}
         <div className="flex flex-col gap-3">
           {visibleTasks.map((task) => (
-            <div
-              key={task.id}
-              onClick={() => selectedAssignment && toggleTask(selectedAssignment.id, task.id)}
-              className={`bg-[#132e2a] rounded-2xl p-4 border transition-all cursor-pointer flex items-start gap-3 ${task.completed
-                ? 'border-[#1b3f3a]/50 opacity-60'
-                : 'border-[#1b3f3a] hover:border-cyan-400/50'
-                }`}
-            >
-              <div className="mt-0.5 flex-shrink-0">
-                {task.completed ? (
-                  <CheckCircle2 className="w-6 h-6 text-cyan-400" />
-                ) : (
-                  <Circle className="w-6 h-6 text-gray-500" />
-                )}
-              </div>
+            (() => {
+              const taskKey = selectedAssignment ? `${selectedAssignment.id}:${task.id}` : task.id;
+              const isCompleting = completingTaskKeys.includes(taskKey);
 
-              <div className="flex-1">
-                <p className={`text-sm ${task.completed ? 'line-through text-gray-400' : 'text-white'}`}>
-                  {task.description}
-                </p>
-              </div>
+              return (
+                <div
+                  key={task.id}
+                  onClick={() => selectedAssignment && handleCompleteTask(selectedAssignment.id, task.id, task.completed)}
+                  className={`bg-[#132e2a] rounded-2xl p-4 border transition-all cursor-pointer flex items-start gap-3 ${task.completed
+                    ? 'border-[#1b3f3a]/50 opacity-60'
+                    : 'border-[#1b3f3a] hover:border-cyan-400/50'
+                    }`}
+                >
+                  <div className="mt-0.5 flex-shrink-0">
+                    {task.completed ? (
+                      <CheckCircle2 className="w-6 h-6 text-cyan-400" />
+                    ) : (
+                      <Circle className="w-6 h-6 text-gray-500" />
+                    )}
+                  </div>
 
-              <div className="flex-shrink-0 bg-[#091f1c] px-2 py-1 rounded-md border border-[#1b3f3a]">
-                <span className="text-xs text-cyan-400 font-bold">+{task.xp} XP</span>
-              </div>
-            </div>
+                  <div className="flex-1">
+                    <p className={`text-sm ${task.completed ? 'line-through text-gray-400' : 'text-white'}`}>
+                      {task.description}
+                    </p>
+                    {isCompleting && (
+                      <p className="text-xs text-cyan-300 mt-2 animate-pulse">Saving...</p>
+                    )}
+                  </div>
+
+                  <div className="flex-shrink-0 bg-[#091f1c] px-2 py-1 rounded-md border border-[#1b3f3a]">
+                    <span className="text-xs text-cyan-400 font-bold">+{task.xp} XP</span>
+                  </div>
+                </div>
+              );
+            })()
           ))}
 
           {!selectedAssignment && !isLoadingAssignments && (

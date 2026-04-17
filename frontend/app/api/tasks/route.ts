@@ -55,3 +55,30 @@ export async function GET(request: Request) {
 
     return Response.json(payload, { status: assignmentsResponse.status });
 }
+
+export async function PATCH(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const studentId = searchParams.get("student_id");
+    const courseCode = searchParams.get("course_code");
+    const assignmentId = searchParams.get("assignment_id");
+    const taskId = searchParams.get("task_id");
+
+    if (!studentId || !courseCode || !assignmentId || !taskId) {
+        return Response.json(
+            { error: "Missing student_id, course_code, assignment_id, or task_id" },
+            { status: 400 }
+        );
+    }
+
+    const backendUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:5000";
+    const response = await fetch(
+        `${backendUrl}/api/assignments/${studentId}/${courseCode}/${assignmentId}/complete_task/${taskId}`,
+        {
+            method: "PATCH",
+            cache: "no-store",
+        }
+    );
+
+    const payload = await response.json();
+    return Response.json(payload, { status: response.status });
+}
