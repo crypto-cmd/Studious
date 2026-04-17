@@ -25,7 +25,7 @@ def create_assignment(student_id, course_code):
     }).execute()
 
     return {
-        "title": assignment_title
+        "title": assignment_title,
         "tasks": tasks,
         "task_count": task_count,
         "total_xp": total_xp

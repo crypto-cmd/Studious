@@ -14,9 +14,48 @@ type MicroTask = {
 
 type Assignment = {
   id: string;
+  title?: string;
   instructions?: string;
   tasks: MicroTask[];
 };
+
+function normalizeCourseCodes(payload: unknown): string[] {
+  const asRecord = payload as Record<string, unknown>;
+
+  const candidateList =
+    (asRecord?.courses as unknown) ??
+    (asRecord?.course_codes as unknown) ??
+    (asRecord?.courseCodes as unknown) ??
+    (asRecord?.data as unknown) ??
+    payload;
+
+  if (!Array.isArray(candidateList)) {
+    return [];
+  }
+
+  const normalized = candidateList
+    .map((item) => {
+      if (typeof item === 'string') {
+        return item.trim();
+      }
+
+      if (!item || typeof item !== 'object') {
+        return '';
+      }
+
+      const record = item as Record<string, unknown>;
+      const value =
+        record.course_code ??
+        record.courseCode ??
+        record.code ??
+        record.id;
+
+      return typeof value === 'string' ? value.trim() : '';
+    })
+    .filter((code): code is string => code.length > 0);
+
+  return [...new Set(normalized)];
+}
 
 export default function TaskManager() {
   const studentId = useSessionStore((snapshot) => snapshot.studentId);
@@ -70,9 +109,7 @@ export default function TaskManager() {
           throw new Error(data?.error ?? 'Unable to load courses');
         }
 
-        const nextCourses = Array.isArray(data?.courses)
-          ? data.courses.filter((code: unknown): code is string => typeof code === 'string' && code.length > 0)
-          : [];
+        const nextCourses = normalizeCourseCodes(data);
 
         setCourses(nextCourses);
         setSelectedCourse((currentCourse) => {
@@ -115,6 +152,7 @@ export default function TaskManager() {
         const normalizedAssignments: Assignment[] = Array.isArray(data?.assignments)
           ? data.assignments.map((a: any) => ({
             id: String(a.id),
+            title: typeof a.title === 'string' ? a.title : '',
             instructions: typeof a.instructions === 'string' ? a.instructions : '',
             tasks: Array.isArray(a.tasks)
               ? a.tasks.map((t: any, idx: number) => ({
@@ -222,7 +260,7 @@ export default function TaskManager() {
 
           {assignments.map((assignmentItem, index) => {
             const isSelected = assignmentItem.id === selectedAssignmentId;
-            const titleText = assignmentItem.instructions?.trim() || `Assignment ${index + 1}`;
+            const titleText = assignmentItem.title?.trim() || assignmentItem.instructions?.trim() || `Assignment ${index + 1}`;
 
             return (
               <button

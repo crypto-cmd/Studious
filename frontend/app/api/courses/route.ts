@@ -7,7 +7,7 @@ export async function GET(request: Request) {
     }
 
     const backendUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:5000";
-    const response = await fetch(`${backendUrl}/api/assignments/${studentId}/courses`, {
+    const response = await fetch(`${backendUrl}/api/students/${studentId}/courses`, {
         cache: "no-store",
     });
 
