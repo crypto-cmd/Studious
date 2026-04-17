@@ -118,5 +118,5 @@ def get_student_by_auth_id(auth_id):
 @student_bp.route("/<student_id>/courses", methods=["GET"])
 def get_courses(student_id):
     courses = db.table("courses").select("*").eq("student_id",student_id).execute()
-    return courses, 200
+    return courses.data
 
