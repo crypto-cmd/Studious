@@ -53,4 +53,21 @@ def complete_task(student_id, course_code, assignment_id, task_id):
 
     return {"message": "Task marked as completed"}
 
+@assignment_bp.route("/<student_id>/<course_code>/assignments", methods=["GET"])
+def get_assignments(student_id, course_code):
+    assignments = db.table("assignments").select("*").eq("student_id", student_id).eq("course_code", course_code).execute().data
+    return {"assignments": assignments}
+
+
+@assignment_bp.route("/<student_id>/<course_code>/<assignment_id>", methods=["GET"])
+def get_tasks(student_id, course_code, assignment_id):
+    assignment = db.table("assignments").select("*").eq("id", assignment_id).execute().data[0]
+
+    if not assignment:
+        return {"error": "Assignment not found"}, 404
+
+    if str(assignment["student_id"]) != student_id or assignment["course_code"] != course_code:
+        return {"error": "Assignment does not belong to the specified student or course"}, 403
+
+    return {"tasks": assignment["tasks"]}
 

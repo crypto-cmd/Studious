@@ -1,7 +1,8 @@
 "use client";
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ListTodo, CheckCircle2, Circle, Sparkles } from 'lucide-react';
 import XpBanner from '../components/XpBanner';
+import { useSessionStore } from '../../lib/sessionStore';
 
 // --- Types ---
 type MicroTask = {
@@ -11,25 +12,138 @@ type MicroTask = {
   completed: boolean;
 };
 
-// --- Mock Data ---
-const initialTasks: MicroTask[] = [
-  { id: '1', description: 'Read Chapter 4 and take notes on the economic impact.', xp: 10, completed: true },
-  { id: '2', description: 'Read Chapter 5 and take notes on land ownership patterns.', xp: 10, completed: true },
-  { id: '3', description: 'Summarize the key content among Chapters 4 to 5.', xp: 15, completed: false },
-  { id: '4', description: 'Write three body paragraphs for each point in your summary.', xp: 20, completed: false },
-];
+type Assignment = {
+  id: string;
+  instructions?: string;
+  tasks: MicroTask[];
+};
 
 export default function TaskManager() {
-  const [tasks, setTasks] = useState<MicroTask[]>(initialTasks);
+  const studentId = useSessionStore((snapshot) => snapshot.studentId);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [courses, setCourses] = useState<string[]>([]);
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState('');
   const [assignment, setAssignment] = useState('');
-  const [course, setCourse] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false);
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const toggleTask = (id: string) => {
-    setTasks(tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+  const toggleTask = (assignmentId: string, taskId: string) => {
+    setAssignments((prev) => prev.map((currentAssignment) => {
+      if (currentAssignment.id !== assignmentId) {
+        return currentAssignment;
+      }
+
+      return {
+        ...currentAssignment,
+        tasks: currentAssignment.tasks.map((task) => (
+          task.id === taskId ? { ...task, completed: !task.completed } : task
+        )),
+      };
+    }));
   };
 
-  const completedCount = tasks.filter(t => t.completed).length;
+  const selectedAssignment = assignments.find((currentAssignment) => currentAssignment.id === selectedAssignmentId) ?? null;
+  const visibleTasks = selectedAssignment?.tasks ?? [];
+
+  const completedCount = visibleTasks.filter(t => t.completed).length;
+
+  useEffect(() => {
+    if (studentId == null) {
+      setCourses([]);
+      setSelectedCourse('');
+      return;
+    }
+
+    const studentIdValue = String(studentId);
+    setIsLoadingCourses(true);
+    setErrorMessage(null);
+
+    fetch(`/api/courses?student_id=${encodeURIComponent(studentIdValue)}`, {
+      cache: 'no-store',
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.error ?? 'Unable to load courses');
+        }
+
+        const nextCourses = Array.isArray(data?.courses)
+          ? data.courses.filter((code: unknown): code is string => typeof code === 'string' && code.length > 0)
+          : [];
+
+        setCourses(nextCourses);
+        setSelectedCourse((currentCourse) => {
+          if (currentCourse && nextCourses.includes(currentCourse)) {
+            return currentCourse;
+          }
+          return nextCourses[0] ?? '';
+        });
+      })
+      .catch((error: unknown) => {
+        setErrorMessage(error instanceof Error ? error.message : 'Unable to load courses');
+        setCourses([]);
+        setSelectedCourse('');
+      })
+      .finally(() => {
+        setIsLoadingCourses(false);
+      });
+  }, [studentId]);
+
+  useEffect(() => {
+    if (studentId == null || !selectedCourse) {
+      setAssignments([]);
+      setSelectedAssignmentId('');
+      return;
+    }
+
+    const studentIdValue = String(studentId);
+    setIsLoadingAssignments(true);
+    setErrorMessage(null);
+
+    fetch(`/api/tasks?student_id=${encodeURIComponent(studentIdValue)}&course_code=${encodeURIComponent(selectedCourse)}`, {
+      cache: 'no-store',
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data?.error ?? 'Unable to load assignments');
+        }
+
+        const normalizedAssignments: Assignment[] = Array.isArray(data?.assignments)
+          ? data.assignments.map((a: any) => ({
+            id: String(a.id),
+            instructions: typeof a.instructions === 'string' ? a.instructions : '',
+            tasks: Array.isArray(a.tasks)
+              ? a.tasks.map((t: any, idx: number) => ({
+                id: typeof t.id === 'string' ? t.id : `${a.id}-${idx}`,
+                description: typeof t.task === 'string' ? t.task : 'Untitled task',
+                xp: Number.isFinite(Number(t.xp)) ? Number(t.xp) : 0,
+                completed: Boolean(t.completed),
+              }))
+              : [],
+          }))
+          : [];
+
+        setAssignments(normalizedAssignments);
+        setSelectedAssignmentId((currentId) => {
+          if (currentId && normalizedAssignments.some((a) => a.id === currentId)) {
+            return currentId;
+          }
+          return normalizedAssignments[0]?.id ?? '';
+        });
+      })
+      .catch((error: unknown) => {
+        setErrorMessage(error instanceof Error ? error.message : 'Unable to load assignments');
+        setAssignments([]);
+        setSelectedAssignmentId('');
+      })
+      .finally(() => {
+        setIsLoadingAssignments(false);
+      });
+  }, [selectedCourse, studentId]);
 
   return (
     <>
@@ -42,9 +156,29 @@ export default function TaskManager() {
         <p className="text-gray-400 text-sm mt-1">Break down overwhelming assignments.</p>
       </header>
 
-      <XpBanner level={5} xp={67} completed={completedCount} total={tasks.length} />
+      <XpBanner level={5} xp={67} completed={completedCount} total={visibleTasks.length} />
 
       <section className="bg-[#132e2a] rounded-3xl p-5 mb-6 border border-[#1b3f3a] shadow-lg">
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-gray-400 mb-1">Select Course</label>
+          <select
+            value={selectedCourse}
+            onChange={(e) => setSelectedCourse(e.target.value)}
+            className="w-full bg-[#0a1816] text-white rounded-xl p-2.5 border border-[#1b3f3a] focus:outline-none focus:border-cyan-400 text-sm"
+            disabled={isLoadingCourses || courses.length === 0}
+          >
+            {courses.length === 0 ? (
+              <option value="">No courses available</option>
+            ) : (
+              courses.map((courseCode) => (
+                <option key={courseCode} value={courseCode}>
+                  {courseCode}
+                </option>
+              ))
+            )}
+          </select>
+        </div>
+
         <div className="mb-4">
           <label className="block text-sm font-medium text-gray-300 mb-2">Paste Assignment</label>
           <textarea
@@ -56,16 +190,6 @@ export default function TaskManager() {
         </div>
 
         <div className="flex gap-4 mb-4">
-          <div className="flex-1">
-            <label className="block text-xs font-medium text-gray-400 mb-1">Linked Course</label>
-            <input
-              type="text"
-              value={course}
-              onChange={(e) => setCourse(e.target.value)}
-              placeholder="e.g. COMP3901"
-              className="w-full bg-[#0a1816] text-white rounded-xl p-2.5 border border-[#1b3f3a] focus:outline-none focus:border-cyan-400 text-sm"
-            />
-          </div>
           <div className="flex-1">
             <label className="block text-xs font-medium text-gray-400 mb-1">Due Date</label>
             <input
@@ -84,15 +208,51 @@ export default function TaskManager() {
       </section>
 
       <section>
+        <h2 className="text-xl font-bold mb-4 px-2">Assignments</h2>
+        <div className="flex flex-col gap-3 mb-6">
+          {isLoadingAssignments && (
+            <p className="text-sm text-gray-400 px-2">Loading assignments...</p>
+          )}
+
+          {!isLoadingAssignments && assignments.length === 0 && (
+            <p className="text-sm text-gray-400 px-2">
+              {selectedCourse ? `No assignments found for ${selectedCourse}.` : 'Select a course to view assignments.'}
+            </p>
+          )}
+
+          {assignments.map((assignmentItem, index) => {
+            const isSelected = assignmentItem.id === selectedAssignmentId;
+            const titleText = assignmentItem.instructions?.trim() || `Assignment ${index + 1}`;
+
+            return (
+              <button
+                key={assignmentItem.id}
+                type="button"
+                onClick={() => setSelectedAssignmentId(assignmentItem.id)}
+                className={`w-full text-left bg-[#132e2a] rounded-2xl p-4 border transition-all ${isSelected
+                  ? 'border-cyan-400/70'
+                  : 'border-[#1b3f3a] hover:border-cyan-400/40'
+                  }`}
+              >
+                <p className="text-sm text-white line-clamp-2">{titleText}</p>
+                <p className="text-xs text-gray-400 mt-2">{assignmentItem.tasks.length} micro-tasks</p>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
         <h2 className="text-xl font-bold mb-4 px-2">Micro-Tasks</h2>
+        {errorMessage && <p className="text-sm text-red-300 px-2 mb-3">{errorMessage}</p>}
         <div className="flex flex-col gap-3">
-          {tasks.map((task) => (
+          {visibleTasks.map((task) => (
             <div
               key={task.id}
-              onClick={() => toggleTask(task.id)}
+              onClick={() => selectedAssignment && toggleTask(selectedAssignment.id, task.id)}
               className={`bg-[#132e2a] rounded-2xl p-4 border transition-all cursor-pointer flex items-start gap-3 ${task.completed
-                  ? 'border-[#1b3f3a]/50 opacity-60'
-                  : 'border-[#1b3f3a] hover:border-cyan-400/50'
+                ? 'border-[#1b3f3a]/50 opacity-60'
+                : 'border-[#1b3f3a] hover:border-cyan-400/50'
                 }`}
             >
               <div className="mt-0.5 flex-shrink-0">
@@ -114,6 +274,10 @@ export default function TaskManager() {
               </div>
             </div>
           ))}
+
+          {!selectedAssignment && !isLoadingAssignments && (
+            <p className="text-sm text-gray-400 px-2">Choose an assignment to view its micro-tasks.</p>
+          )}
         </div>
       </section>
 

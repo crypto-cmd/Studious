@@ -7,6 +7,7 @@ import ComingSoon from "./components/ComingSoon";
 import HomeDashboard from "./pages/HomeDashboard";
 import TaskManager from "./pages/TasksManager";
 import { supabase } from "../lib/supabase";
+import { sessionStoreActions, useSessionStore } from "../lib/sessionStore";
 import SignOutButton from "./components/SignOutButton";
 
 type AuthIntent = "signin" | "signup" | null;
@@ -47,8 +48,8 @@ function buildDisplayName(firstname: string, lastname: string, nickname: string)
 }
 
 export default function App() {
-  const [authId, setAuthId] = useState<string | null>(null);
-  const [studentId, setStudentId] = useState<string | number | null>(null);
+  const authId = useSessionStore((snapshot) => snapshot.authId);
+  const studentId = useSessionStore((snapshot) => snapshot.studentId);
   const [studentName, setStudentName] = useState<string | null>(null);
   const [defaultSignupProfile, setDefaultSignupProfile] = useState<SignupDefaults>(EMPTY_SIGNUP_DEFAULTS);
   const [authIntent, setAuthIntent] = useState<AuthIntent>(null);
@@ -85,11 +86,10 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
-        setAuthId(session.user.id);
+        sessionStoreActions.setAuthId(session.user.id);
         setDefaultSignupProfile(buildSignupDefaults(session.user));
       } else {
-        setAuthId(null);
-        setStudentId(null);
+        sessionStoreActions.clear();
         setDefaultSignupProfile(EMPTY_SIGNUP_DEFAULTS);
         setSignupFirstname("");
         setSignupLastname("");
@@ -101,11 +101,10 @@ export default function App() {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setAuthId(session.user.id);
+        sessionStoreActions.setAuthId(session.user.id);
         setDefaultSignupProfile(buildSignupDefaults(session.user));
       } else {
-        setAuthId(null);
-        setStudentId(null);
+        sessionStoreActions.clear();
         setStudentName(null);
         setDefaultSignupProfile(EMPTY_SIGNUP_DEFAULTS);
         setSignupFirstname("");
@@ -122,7 +121,7 @@ export default function App() {
   useEffect(() => {
     if (!authId) {
       setStudentName(null);
-      setStudentId(null);
+      sessionStoreActions.setStudentId(null);
       setIsProfileLoading(false);
       return;
     }
@@ -147,11 +146,11 @@ export default function App() {
             setAuthError(
               "This account doesn't have a student profile. Please sign up to create one."
             );
-            setAuthId(null);
+            sessionStoreActions.setAuthId(null);
             setAuthIntent(null);
             window.sessionStorage.removeItem("auth_intent");
             setStudentName(null);
-            setStudentId(null);
+            sessionStoreActions.setStudentId(null);
             setIsProfileLoading(false);
             return;
           }
@@ -160,7 +159,7 @@ export default function App() {
             console.error("Error loading student profile:", payload?.error ?? response.statusText);
           }
           setStudentName(null);
-          setStudentId(null);
+          sessionStoreActions.setStudentId(null);
           setIsProfileLoading(false);
           return;
         }
@@ -171,7 +170,7 @@ export default function App() {
           payload?.nickname ?? ""
         );
         setStudentName(resolvedName || null);
-        setStudentId(payload?.student_id ?? null);
+        sessionStoreActions.setStudentId(payload?.student_id ?? null);
         setIsProfileLoading(false);
       })
       .catch(async (error: unknown) => {
@@ -185,14 +184,14 @@ export default function App() {
           setAuthError(
             "Unable to verify your account. Please try signing in again."
           );
-          setAuthId(null);
+          sessionStoreActions.setAuthId(null);
           setAuthIntent(null);
           window.sessionStorage.removeItem("auth_intent");
         }
 
         console.error("Error loading student profile:", error);
         setStudentName(null);
-        setStudentId(null);
+        sessionStoreActions.setStudentId(null);
         setIsProfileLoading(false);
       });
 
@@ -282,7 +281,7 @@ export default function App() {
       window.sessionStorage.setItem("auth_intent", "signin");
       setAuthIntent("signin");
       setStudentName(payload?.name ?? buildDisplayName(nextFirstname, nextLastname, nextNickname));
-      setStudentId(payload?.student_id ?? null);
+      sessionStoreActions.setStudentId(payload?.student_id ?? null);
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Unable to create your profile right now.");
     } finally {
@@ -312,7 +311,7 @@ export default function App() {
   const activeContent = useMemo(() => {
     switch (activeTab) {
       case "home":
-        return <HomeDashboard studentName={studentName} studentId={studentId} />;
+        return <HomeDashboard studentName={studentName} />;
       case "tasks":
         return <TaskManager />;
       case "timer":
@@ -337,9 +336,9 @@ export default function App() {
           />
         );
       default:
-        return <HomeDashboard studentName={studentName} studentId={studentId} />;
+        return <HomeDashboard studentName={studentName} />;
     }
-  }, [activeTab, studentId, studentName]);
+  }, [activeTab, studentName]);
 
   if (!authId) {
     return (

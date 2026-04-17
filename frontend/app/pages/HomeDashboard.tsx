@@ -1,5 +1,6 @@
 import { Calendar, Brain, ChevronRight, ArrowLeft, Hourglass } from 'lucide-react';
 import XpBanner from '../components/XpBanner';
+import { useSessionStore } from '../../lib/sessionStore';
 
 // --- Types ---
 type Course = {
@@ -18,7 +19,6 @@ type Day = {
 
 type HomeDashboardProps = {
   studentName: string | null;
-  studentId: string | number | null;
 };
 
 // --- Mock Data ---
@@ -37,7 +37,8 @@ const currentWeek: Day[] = [
   { dayStr: 'Sun', date: 22, isActive: false },
 ];
 
-export default function HomeDashboard({ studentName, studentId }: HomeDashboardProps) {
+export default function HomeDashboard({ studentName }: HomeDashboardProps) {
+  const studentId = useSessionStore((snapshot) => snapshot.studentId);
   const displayName = studentName?.trim() || "Student";
   const displayId = studentId == null ? "Unknown" : String(studentId).trim() || "Unknown";
 
