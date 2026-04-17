@@ -11,14 +11,53 @@ import SignOutButton from "./components/SignOutButton";
 
 type AuthIntent = "signin" | "signup" | null;
 
+type SignupDefaults = {
+  firstname: string;
+  lastname: string;
+  nickname: string;
+};
+
+const EMPTY_SIGNUP_DEFAULTS: SignupDefaults = {
+  firstname: "",
+  lastname: "",
+  nickname: "",
+};
+
+function buildSignupDefaults(sessionUser: {
+  user_metadata?: Record<string, unknown>;
+  email?: string | null;
+}) {
+  const seededName =
+    (sessionUser.user_metadata?.nickname as string | undefined) ||
+    (sessionUser.user_metadata?.name as string | undefined) ||
+    (sessionUser.user_metadata?.full_name as string | undefined) ||
+    sessionUser.email?.split("@")[0] ||
+    "";
+
+  const nameParts = seededName.trim().split(/\s+/).filter(Boolean);
+  return {
+    firstname: nameParts[0] ?? "",
+    lastname: nameParts.slice(1).join(" "),
+    nickname: seededName.trim(),
+  } satisfies SignupDefaults;
+}
+
+function buildDisplayName(firstname: string, lastname: string, nickname: string) {
+  return nickname.trim() || [firstname.trim(), lastname.trim()].filter(Boolean).join(" ");
+}
+
 export default function App() {
   const [authId, setAuthId] = useState<string | null>(null);
   const [studentId, setStudentId] = useState<string | number | null>(null);
   const [studentName, setStudentName] = useState<string | null>(null);
-  const [defaultProfileName, setDefaultProfileName] = useState<string>("");
+  const [defaultSignupProfile, setDefaultSignupProfile] = useState<SignupDefaults>(EMPTY_SIGNUP_DEFAULTS);
   const [authIntent, setAuthIntent] = useState<AuthIntent>(null);
   const [isProfileLoading, setIsProfileLoading] = useState<boolean>(false);
-  const [signupName, setSignupName] = useState<string>("");
+  const [signupFirstname, setSignupFirstname] = useState<string>("");
+  const [signupLastname, setSignupLastname] = useState<string>("");
+  const [signupNickname, setSignupNickname] = useState<string>("");
+  const [signupStudentId, setSignupStudentId] = useState<string>("");
+  const [signupGender, setSignupGender] = useState<string>("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [isCreatingProfile, setIsCreatingProfile] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<TabId>("home");
@@ -47,33 +86,33 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setAuthId(session.user.id);
-        const seededName =
-          (session.user.user_metadata?.name as string | undefined) ||
-          (session.user.user_metadata?.full_name as string | undefined) ||
-          session.user.email?.split("@")[0] ||
-          "";
-        setDefaultProfileName(seededName);
+        setDefaultSignupProfile(buildSignupDefaults(session.user));
       } else {
         setAuthId(null);
         setStudentId(null);
-        setDefaultProfileName("");
+        setDefaultSignupProfile(EMPTY_SIGNUP_DEFAULTS);
+        setSignupFirstname("");
+        setSignupLastname("");
+        setSignupNickname("");
+        setSignupStudentId("");
+        setSignupGender("");
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setAuthId(session.user.id);
-        const seededName =
-          (session.user.user_metadata?.name as string | undefined) ||
-          (session.user.user_metadata?.full_name as string | undefined) ||
-          session.user.email?.split("@")[0] ||
-          "";
-        setDefaultProfileName(seededName);
+        setDefaultSignupProfile(buildSignupDefaults(session.user));
       } else {
         setAuthId(null);
         setStudentId(null);
         setStudentName(null);
-        setDefaultProfileName("");
+        setDefaultSignupProfile(EMPTY_SIGNUP_DEFAULTS);
+        setSignupFirstname("");
+        setSignupLastname("");
+        setSignupNickname("");
+        setSignupStudentId("");
+        setSignupGender("");
       }
     });
 
@@ -126,7 +165,12 @@ export default function App() {
           return;
         }
 
-        setStudentName(payload?.name ?? null);
+        const resolvedName = payload?.name ?? buildDisplayName(
+          payload?.firstname ?? "",
+          payload?.lastname ?? "",
+          payload?.nickname ?? ""
+        );
+        setStudentName(resolvedName || null);
         setStudentId(payload?.student_id ?? null);
         setIsProfileLoading(false);
       })
@@ -155,13 +199,21 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, [authId]);
+  }, [authId, authIntent]);
 
   useEffect(() => {
-    if (authIntent === "signup" && !studentName && !signupName) {
-      setSignupName(defaultProfileName);
+    if (authIntent === "signup") {
+      if (!signupFirstname && defaultSignupProfile.firstname) {
+        setSignupFirstname(defaultSignupProfile.firstname);
+      }
+      if (!signupLastname && defaultSignupProfile.lastname) {
+        setSignupLastname(defaultSignupProfile.lastname);
+      }
+      if (!signupNickname && defaultSignupProfile.nickname) {
+        setSignupNickname(defaultSignupProfile.nickname);
+      }
     }
-  }, [authIntent, defaultProfileName, studentName, signupName]);
+  }, [authIntent, defaultSignupProfile.firstname, defaultSignupProfile.lastname, defaultSignupProfile.nickname, signupFirstname, signupLastname, signupNickname]);
 
   const signInWithGoogle = async (intent: Exclude<AuthIntent, null>) => {
     setAuthError(null);
@@ -191,9 +243,13 @@ export default function App() {
       return;
     }
 
-    const nextName = signupName.trim();
-    if (!nextName) {
-      setAuthError("Please enter your name before continuing.");
+    const nextFirstname = signupFirstname.trim();
+    const nextLastname = signupLastname.trim();
+    const nextNickname = signupNickname.trim();
+    const nextStudentId = signupStudentId.trim();
+
+    if (!nextFirstname || !nextLastname || !nextNickname || !nextStudentId || !signupGender) {
+      setAuthError("Please complete your profile details before continuing.");
       return;
     }
 
@@ -208,7 +264,12 @@ export default function App() {
         },
         body: JSON.stringify({
           auth_id: authId,
-          name: nextName,
+          firstname: nextFirstname,
+          lastname: nextLastname,
+          nickname: nextNickname,
+          student_id: nextStudentId,
+          gender: signupGender,
+          name: buildDisplayName(nextFirstname, nextLastname, nextNickname),
         }),
       });
 
@@ -220,7 +281,7 @@ export default function App() {
 
       window.sessionStorage.setItem("auth_intent", "signin");
       setAuthIntent("signin");
-      setStudentName(payload?.name ?? nextName);
+      setStudentName(payload?.name ?? buildDisplayName(nextFirstname, nextLastname, nextNickname));
       setStudentId(payload?.student_id ?? null);
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Unable to create your profile right now.");
@@ -329,16 +390,64 @@ export default function App() {
           <section className="min-h-[70vh] flex flex-col items-center justify-center gap-4 text-center">
             <h1 className="text-3xl font-bold text-white">Finish your sign up</h1>
             <p className="text-gray-300 text-sm max-w-xs">
-              Confirm your name below. You can edit it before we create your student profile.
+              Tell us how you want your profile to appear and we’ll create your student account.
             </p>
-            <form onSubmit={handleSignupSubmit} className="w-full max-w-xs flex flex-col gap-3">
-              <input
-                type="text"
-                value={signupName}
-                onChange={(event) => setSignupName(event.target.value)}
-                placeholder="Your full name"
-                className="w-full bg-[#132e2a] text-white rounded-xl p-3 border border-[#1b3f3a] focus:outline-none focus:border-cyan-400"
-              />
+            <form onSubmit={handleSignupSubmit} className="w-full max-w-sm flex flex-col gap-3 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold text-gray-300">First name</label>
+                  <input
+                    type="text"
+                    value={signupFirstname}
+                    onChange={(event) => setSignupFirstname(event.target.value)}
+                    placeholder="Ada"
+                    className="w-full bg-[#132e2a] text-white rounded-xl p-3 border border-[#1b3f3a] focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-semibold text-gray-300">Last name</label>
+                  <input
+                    type="text"
+                    value={signupLastname}
+                    onChange={(event) => setSignupLastname(event.target.value)}
+                    placeholder="Lovelace"
+                    className="w-full bg-[#132e2a] text-white rounded-xl p-3 border border-[#1b3f3a] focus:outline-none focus:border-cyan-400"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-300">Nickname</label>
+                <input
+                  type="text"
+                  value={signupNickname}
+                  onChange={(event) => setSignupNickname(event.target.value)}
+                  placeholder="Adele"
+                  className="w-full bg-[#132e2a] text-white rounded-xl p-3 border border-[#1b3f3a] focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-300">Student ID</label>
+                <input
+                  type="text"
+                  value={signupStudentId}
+                  onChange={(event) => setSignupStudentId(event.target.value)}
+                  placeholder="20261234"
+                  className="w-full bg-[#132e2a] text-white rounded-xl p-3 border border-[#1b3f3a] focus:outline-none focus:border-cyan-400"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold text-gray-300">Gender</label>
+                <select
+                  value={signupGender}
+                  onChange={(event) => setSignupGender(event.target.value)}
+                  className="w-full bg-[#132e2a] text-white rounded-xl p-3 border border-[#1b3f3a] focus:outline-none focus:border-cyan-400"
+                >
+                  <option value="">Select gender</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
               <button
                 type="submit"
                 disabled={isCreatingProfile}
