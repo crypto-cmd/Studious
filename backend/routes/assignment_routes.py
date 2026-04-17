@@ -8,6 +8,7 @@ assignment_bp = Blueprint('assignment_bp', __name__)
 def create_assignment(student_id, course_code):
     assignment_title = request.get_json().get('title')
     instructions = request.get_json().get('instructions')
+    due_date = request.get_json().get('due_date')
     from computations.PromptChunker import PromptChunker
 
     if not instructions:
@@ -22,6 +23,7 @@ def create_assignment(student_id, course_code):
         "course_code": course_code,
         "title": assignment_title,
         "tasks": tasks,
+        "due_date": due_date,
     }).execute()
 
     return {
