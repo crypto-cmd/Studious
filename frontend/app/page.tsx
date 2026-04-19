@@ -139,6 +139,7 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [lastAuthEvent, setLastAuthEvent] = useState<string>("INIT");
   const [lastProfileStatus, setLastProfileStatus] = useState<number | null>(null);
+  const [hasAuthHashTokens, setHasAuthHashTokens] = useState<boolean>(false);
   const [isProbablyInAppBrowser, setIsProbablyInAppBrowser] = useState<boolean>(false);
   const [hasCopiedDiagnostics, setHasCopiedDiagnostics] = useState<boolean>(false);
   const [isCreatingProfile, setIsCreatingProfile] = useState<boolean>(false);
@@ -162,6 +163,10 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const hash = window.location.hash || "";
+    const hashLooksLikeAuthCallback = /access_token=|refresh_token=|error=|error_description=/.test(hash);
+    setHasAuthHashTokens(hashLooksLikeAuthCallback);
+
     const oauthError = params.get("error_description") || params.get("error") || params.get("error_code");
 
     if (oauthError) {
@@ -175,7 +180,7 @@ export default function App() {
       window.sessionStorage.setItem("auth_intent", intentFromUrl);
       params.delete("intent");
       const nextQuery = params.toString();
-      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${hash}`;
       window.history.replaceState({}, "", nextUrl);
       return;
     }
@@ -567,6 +572,7 @@ export default function App() {
       isProfileLoading,
       lastAuthEvent,
       lastProfileStatus,
+      hasAuthHashTokens,
       isProbablyInAppBrowser,
       userAgent: window.navigator.userAgent,
     };
@@ -621,6 +627,7 @@ export default function App() {
             <p className="text-xs font-semibold text-cyan-300">Phone sign-in diagnostics</p>
             <p className="text-xs text-gray-300 mt-2">Last auth event: {lastAuthEvent}</p>
             <p className="text-xs text-gray-300">Last profile status: {lastProfileStatus ?? "none"}</p>
+            <p className="text-xs text-gray-300">Auth hash tokens seen: {hasAuthHashTokens ? "yes" : "no"}</p>
             {isProbablyInAppBrowser && (
               <p className="text-xs text-amber-300 mt-2">
                 In-app browser detected. Open this page in Safari or Chrome to avoid OAuth cookie/session restrictions.
