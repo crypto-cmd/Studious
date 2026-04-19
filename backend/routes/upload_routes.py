@@ -2,8 +2,8 @@ from flask import Flask, request, Blueprint
 import uuid
 import shutil
 
-from vecor_store.pdfProcessor import extract_text, chunk_text
-from vecor_store.Pinecone import upsert_chunks
+from computations.vecor_store.pdfProcessor import extract_text, chunk_text
+from computations.vecor_store.Pinecone import upsert_chunks
 
 source_bp = Blueprint('source_bp', __name__)
 

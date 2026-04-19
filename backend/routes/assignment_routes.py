@@ -1,6 +1,6 @@
 from flask import Flask, request, Blueprint
 from data.db import db
-from vector_store.Pinecone import query_chunks
+from computations.vector_store.Pinecone import query_chunks
 
 assignment_bp = Blueprint('assignment_bp', __name__)
 
