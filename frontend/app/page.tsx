@@ -58,6 +58,46 @@ const EMPTY_ONBOARDING_FORM: OnboardingForm = {
 };
 
 const MIN_LOGIN_LOADING_MS = 2000;
+const PROFILE_FETCH_MAX_ATTEMPTS = 3;
+const PROFILE_FETCH_RETRY_DELAY_MS = 450;
+const PROFILE_FETCH_RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchStudentProfileWithRetry(authId: string) {
+  const profileUrl = `/api/student-profile?auth_id=${encodeURIComponent(authId)}`;
+  let lastError: unknown = null;
+
+  for (let attempt = 1; attempt <= PROFILE_FETCH_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const response = await fetch(profileUrl, {
+        cache: "no-store",
+      });
+
+      const payload = await response.json().catch(() => null);
+
+      if (response.ok) {
+        return { response, payload };
+      }
+
+      if (!PROFILE_FETCH_RETRYABLE_STATUSES.has(response.status) || attempt === PROFILE_FETCH_MAX_ATTEMPTS) {
+        return { response, payload };
+      }
+    } catch (error) {
+      lastError = error;
+
+      if (attempt === PROFILE_FETCH_MAX_ATTEMPTS) {
+        throw error;
+      }
+    }
+
+    await wait(PROFILE_FETCH_RETRY_DELAY_MS * attempt);
+  }
+
+  throw lastError ?? new Error("Unable to load student profile");
+}
 
 function buildSignupDefaults(sessionUser: {
   user_metadata?: Record<string, unknown>;
@@ -84,6 +124,7 @@ function buildDisplayName(firstname: string, lastname: string, nickname: string)
 
 export default function App() {
   const authId = useSessionStore((snapshot) => snapshot.authId);
+  const [isAuthInitializing, setIsAuthInitializing] = useState<boolean>(true);
   const [studentName, setStudentName] = useState<string | null>(null);
   const [defaultSignupProfile, setDefaultSignupProfile] = useState<SignupDefaults>(EMPTY_SIGNUP_DEFAULTS);
   const [authIntent, setAuthIntent] = useState<AuthIntent>(null);
@@ -130,7 +171,13 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    let isMounted = true;
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!isMounted) {
+        return;
+      }
+
       if (session?.user) {
         sessionStoreActions.setAuthId(session.user.id);
         setDefaultSignupProfile(buildSignupDefaults(session.user));
@@ -139,6 +186,8 @@ export default function App() {
         setDefaultSignupProfile(EMPTY_SIGNUP_DEFAULTS);
         resetSignupForm();
       }
+
+      setIsAuthInitializing(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -151,9 +200,14 @@ export default function App() {
         setDefaultSignupProfile(EMPTY_SIGNUP_DEFAULTS);
         resetSignupForm();
       }
+
+      setIsAuthInitializing(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -191,12 +245,10 @@ export default function App() {
     };
 
     setIsProfileLoading(true);
+    setAuthError(null);
 
-    fetch(`/api/student-profile?auth_id=${encodeURIComponent(authId)}`, {
-      cache: "no-store",
-    })
-      .then(async (response) => {
-        const payload = await response.json();
+    fetchStudentProfileWithRetry(authId)
+      .then(async ({ response, payload }) => {
 
         if (!isMounted) {
           return;
@@ -244,18 +296,8 @@ export default function App() {
           return;
         }
 
-        // If signin attempt fails, sign them out
-        if (authIntent === "signin") {
-          await supabase.auth.signOut().catch(() => { });
-          setAuthError(
-            "Unable to verify your account. Please try signing in again."
-          );
-          sessionStoreActions.setAuthId(null);
-          setAuthIntent(null);
-          window.sessionStorage.removeItem("auth_intent");
-        }
-
         console.error("Error loading student profile:", error);
+        setAuthError("Temporary connection issue while loading your profile. Please wait a moment and try again.");
         setStudentName(null);
         sessionStoreActions.setStudentId(null);
         finishLoading();
@@ -446,6 +488,17 @@ export default function App() {
         return <HomeDashboard studentName={studentName} />;
     }
   }, [activeTab, studentName]);
+
+  if (isAuthInitializing) {
+    return (
+      <AppShell>
+        <section className="min-h-[70vh] flex flex-col items-center justify-center gap-3 text-center">
+          <Loading />
+          <p className="text-gray-200 text-sm">Checking your session...</p>
+        </section>
+      </AppShell>
+    );
+  }
 
   if (!authId) {
     return (
