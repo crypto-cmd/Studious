@@ -1,7 +1,6 @@
-from flask import Blueprint, request
 from datetime import datetime
-import os
-from supabase import create_client
+
+from flask import Blueprint, request
 
 from data.db import db
 
@@ -16,15 +15,17 @@ def _parse_time_to_seconds(value):
 
     return parsed_time.hour * 3600 + parsed_time.minute * 60 + parsed_time.second
 
+
 @focus_session_bp.route("/<student_id>", methods=["GET"])
 def list_focus_sessions(student_id):
     try:
-        response = (db.table("focus_sessions")
-                .select("id, student_id, day_of_week, start_time, end_time, created_at")
-                .eq("student_id", student_id)
-                .limit(10)
-                .execute())
-       
+        response = (
+            db.table("focus_sessions")
+            .select("id, student_id, day_of_week, start_time, end_time, created_at")
+            .eq("student_id", student_id)
+            .limit(10)
+            .execute()
+        )
         return {"sessions": response.data or []}, 200
     except Exception:
         return {"error": "Unable to load focus sessions"}, 500

@@ -8,13 +8,13 @@ export async function GET(request: Request) {
         return Response.json({ error: "Missing auth_id" }, { status: 400 });
     }
 
-    return proxyBackend(`/api/students/${authId}`);
+    return proxyBackend(`/api/auth/student-profile/${authId}`);
 }
 
 export async function POST(request: Request) {
     const payload = await request.json();
 
-    return proxyBackend('/api/students', {
+    return proxyBackend('/api/auth/student-profile', {
         method: 'POST',
         body: payload,
     });
@@ -30,7 +30,7 @@ export async function PATCH(request: Request) {
 
     const payload = await request.json();
 
-    return proxyBackend(`/api/students/${authId}`, {
+    return proxyBackend(`/api/auth/student-profile/${authId}`, {
         method: 'PATCH',
         body: payload,
     });
