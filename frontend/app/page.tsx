@@ -162,6 +162,12 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const oauthError = params.get("error_description") || params.get("error") || params.get("error_code");
+
+    if (oauthError) {
+      setAuthError(`OAuth callback error: ${oauthError}`);
+    }
+
     const intentFromUrl = params.get("intent");
 
     if (intentFromUrl === "signin" || intentFromUrl === "signup") {
@@ -221,6 +227,50 @@ export default function App() {
     return () => {
       isMounted = false;
       subscription.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    const exchangeOAuthCode = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+
+      if (!code) {
+        return;
+      }
+
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+      if (isCancelled) {
+        return;
+      }
+
+      if (error) {
+        setAuthError(`Unable to complete sign in: ${error.message}`);
+        return;
+      }
+
+      if (data.session?.user?.id) {
+        sessionStoreActions.setAuthId(data.session.user.id);
+      }
+
+      params.delete("code");
+      params.delete("state");
+      params.delete("error");
+      params.delete("error_code");
+      params.delete("error_description");
+
+      const nextQuery = params.toString();
+      const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}`;
+      window.history.replaceState({}, "", nextUrl);
+    };
+
+    exchangeOAuthCode();
+
+    return () => {
+      isCancelled = true;
     };
   }, []);
 
