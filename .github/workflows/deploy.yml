@@ -55,11 +55,14 @@ jobs:
 
             # 4. Set up Python virtual environment and dependencies using uv
             cd $BACKEND_DIR
-            uv venv # Automatically creates a .venv directory
+            # Only create the virtual environment if it doesn't already exist
+            if [ ! -d ".venv" ]; then
+              uv venv 
+            fi
             uv pip install -r requirements.txt # Automatically detects and uses the .venv
 
             echo "$ENV_FILE_SECRET" > .env
-            
+
             # 5. Create Gunicorn Systemd Service
             cat << 'EOF' | sudo tee /etc/systemd/system/flaskapp.service > /dev/null
             [Unit]
