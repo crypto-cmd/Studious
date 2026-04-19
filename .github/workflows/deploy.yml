@@ -20,6 +20,9 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Exit immediately if ANY command fails
+            set -e 
+
             APP_DIR="/home/ubuntu/Studious"
             BACKEND_DIR="$APP_DIR/backend"
             
@@ -31,8 +34,13 @@ jobs:
             if ! command -v uv &> /dev/null; then
               curl -LsSf https://astral.sh/uv/install.sh | sh
             fi
+            
             # Ensure uv is available in the current PATH for the runner
-            export PATH="$HOME/.cargo/bin:$PATH"
+            # FIXED: Added $HOME/.local/bin where uv usually installs
+            export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+            
+            # Verify uv is actually installed before continuing
+            uv --version
 
             # 3. Clone or pull the repository
             if [ ! -d "$APP_DIR" ]; then
