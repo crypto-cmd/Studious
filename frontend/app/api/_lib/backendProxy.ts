@@ -14,6 +14,11 @@ type BackendPayloadResult = {
 function buildRequestInit(options: BackendRequestOptions): RequestInit {
     const method = options.method ?? 'GET';
 
+    const headers = new Headers(options.headers);
+    
+    if (process.env.HF_TOKEN) {
+        headers.set('Authorization', `Bearer ${process.env.HF_TOKEN}`);
+    }
     const init: RequestInit = {
         method,
         cache: options.cache ?? 'no-store',
