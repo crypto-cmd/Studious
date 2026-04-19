@@ -5,6 +5,7 @@
         "frontend:init": "cd frontend && bun install",
         "frontend:run": "cd frontend && bun run start",
         "frontend:dev": "cd frontend && bun run dev",
-        "dev": "npx concurrently \"bun run backend:run\" \"bun run frontend:dev\""
+        "dev": "npx concurrently \"bun run backend:run\" \"bun run frontend:dev\"",
+        "frontend:build": "cd frontend && bun run build"
     }
 }
