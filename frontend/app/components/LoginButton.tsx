@@ -1,11 +1,15 @@
 "use client";
 
 import { supabase } from "@lib/supabase";
+import { getAuthRedirectUrl } from "@lib/authRedirect";
 
 export async function signInWithGoogle() {
-  const { data, error } = await supabase.auth.signInWithOAuth({
+  const redirectTo = getAuthRedirectUrl(window.location.pathname);
+
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
+      redirectTo,
       // Optional: Force a prompt to select account
       queryParams: {
         access_type: 'offline',

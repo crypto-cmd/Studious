@@ -8,6 +8,7 @@ import HomeDashboard from "@pages/HomeDashboard";
 import TaskManager from "@pages/TasksManager";
 import FocusTimer from "@pages/FocusTimer";
 import { supabase } from "@lib/supabase";
+import { getAuthRedirectUrl } from "@lib/authRedirect";
 import { sessionStoreActions, useSessionStore } from "@lib/sessionStore";
 import SignOutButton from "@components/SignOutButton";
 import Analytics from "@pages/Analytics";
@@ -291,7 +292,7 @@ export default function App() {
     window.sessionStorage.setItem("auth_intent", intent);
 
     const redirectPath = intent === "signup" ? "/onboarding" : window.location.pathname;
-    const redirectTo = `${window.location.origin}${redirectPath}?intent=${intent}`;
+    const redirectTo = `${getAuthRedirectUrl(redirectPath)}?intent=${intent}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
