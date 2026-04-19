@@ -1,6 +1,6 @@
-from flask import Flask, request
+from flask import Flask
 from dotenv import load_dotenv
-import os
+
 from data.db import db
 from routes.assignment_routes import assignment_bp
 from routes.trajectory_routes import trajectory_bp
@@ -9,6 +9,7 @@ from routes.improvement_routes import improvement_bp
 from routes.student_routes import student_bp
 from routes.focus_session_routes import focus_session_bp
 
+load_dotenv()  # Load environment variables from .env file
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -20,7 +21,8 @@ app.register_blueprint(improvement_bp, url_prefix="/api/improvement")
 app.register_blueprint(student_bp, url_prefix="/api/students")
 app.register_blueprint(focus_session_bp, url_prefix="/api/focus-sessions")
 
-
-# Optional: Run the app if this file is executed directly
+@app.route('/')
+def home():
+    return "Hello, World! This Flask app is deployed via GitHub Actions."
 if __name__ == "__main__":
     app.run(debug=True)
