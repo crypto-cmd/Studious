@@ -1,3 +1,5 @@
+import { CheckCircle2, Circle } from "lucide-react";
+
 type TaskItemProps = {
     task: {
         id: string;
@@ -20,9 +22,9 @@ export default function TaskItem({ task, isCompleting, onClick }: TaskItemProps)
         >
             <div className="mt-0.5 flex-shrink-0">
                 {task.completed ? (
-                    <span className="w-6 h-6 inline-flex items-center justify-center text-cyan-400">✓</span>
+                    <CheckCircle2 className="w-6 h-6 text-cyan-400" />
                 ) : (
-                    <span className="w-6 h-6 inline-flex items-center justify-center text-gray-500">○</span>
+                    <Circle className="w-6 h-6 text-gray-500" />
                 )}
             </div>
 

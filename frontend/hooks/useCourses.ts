@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useApi } from '@hooks/useApi';
 
 export type CoursePrediction = {
     grade: number;
@@ -205,22 +206,20 @@ export function useCourses(studentId: string | number | null): UseCoursesResult 
             return;
         }
 
-        const studentIdValue = String(studentId);
         let isCancelled = false;
 
         setIsLoading(true);
         setError(null);
 
-        fetch(`/api/courses?student_id=${encodeURIComponent(studentIdValue)}`, {
-            cache: 'no-store',
-        })
-            .then(async (response) => {
-                const payload = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(payload?.error ?? 'Unable to load courses');
-                }
-
+        useApi(
+            'courses',
+            'GET',
+            { student_id: String(studentId) },
+            {},
+            { cache: 'no-store' },
+            'Unable to load courses'
+        )
+            .then((payload) => {
                 return normalizeCourses(payload);
             })
             .then((nextCourses) => {

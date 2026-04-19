@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useApi } from '@hooks/useApi';
 
 type TaskSummary = {
     completedCount: number;
@@ -98,14 +99,15 @@ export function useTaskSummary(studentId: string | number | null, options?: UseT
         let isCancelled = false;
         const studentIdValue = String(studentId);
 
-        fetch(`/api/courses?student_id=${encodeURIComponent(studentIdValue)}`, {
-            cache: 'no-store',
-        })
-            .then(async (coursesResponse) => {
-                const coursesPayload = await coursesResponse.json();
-                if (!coursesResponse.ok) {
-                    throw new Error(coursesPayload?.error ?? 'Unable to load courses');
-                }
+        useApi(
+            'courses',
+            'GET',
+            { student_id: studentIdValue },
+            {},
+            { cache: 'no-store' },
+            'Unable to load courses'
+        )
+            .then(async (coursesPayload) => {
 
                 const courseCodes = normalizeCourseCodes(coursesPayload);
                 if (courseCodes.length === 0) {
@@ -114,17 +116,14 @@ export function useTaskSummary(studentId: string | number | null, options?: UseT
 
                 const assignmentGroups = await Promise.all(
                     courseCodes.map(async (courseCode) => {
-                        const assignmentsResponse = await fetch(
-                            `/api/tasks?student_id=${encodeURIComponent(studentIdValue)}&course_code=${encodeURIComponent(courseCode)}`,
-                            {
-                                cache: 'no-store',
-                            }
+                        const assignmentsPayload = await useApi(
+                            'tasks',
+                            'GET',
+                            { student_id: studentIdValue, course_code: courseCode },
+                            {},
+                            { cache: 'no-store' },
+                            `Unable to load assignments for ${courseCode}`
                         );
-
-                        const assignmentsPayload = await assignmentsResponse.json();
-                        if (!assignmentsResponse.ok) {
-                            throw new Error(assignmentsPayload?.error ?? `Unable to load assignments for ${courseCode}`);
-                        }
 
                         return normalizeAssignments(assignmentsPayload);
                     })

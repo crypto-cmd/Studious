@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useApi } from '@hooks/useApi';
 
 export type MicroTask = {
     id: string;
@@ -160,18 +161,19 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         setErrorMessage(null);
 
         try {
-            const studentIdValue = String(studentId);
-            const response = await fetch(
-                `/api/tasks?student_id=${encodeURIComponent(studentIdValue)}&course_code=${encodeURIComponent(selectedCourse)}&assignment_id=${encodeURIComponent(assignmentId)}&task_id=${encodeURIComponent(taskId)}`,
+            await useApi(
+                'tasks',
+                'PATCH',
                 {
-                    method: 'PATCH',
-                }
+                    student_id: String(studentId),
+                    course_code: selectedCourse,
+                    assignment_id: assignmentId,
+                    task_id: taskId,
+                },
+                {},
+                {},
+                'Unable to complete task'
             );
-
-            const payload = await response.json();
-            if (!response.ok) {
-                throw new Error(payload?.error ?? 'Unable to complete task');
-            }
 
             markTaskCompletedLocally(assignmentId, taskId);
             onTaskCompleted(1);
@@ -204,26 +206,18 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         setErrorMessage(null);
 
         try {
-            const studentIdValue = String(studentId);
-            const response = await fetch(
-                `/api/tasks?student_id=${encodeURIComponent(studentIdValue)}&course_code=${encodeURIComponent(selectedCourse)}`,
+            await useApi(
+                'tasks',
+                'POST',
+                { student_id: String(studentId), course_code: selectedCourse },
                 {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        title,
-                        instructions,
-                        due_date: dueDate || null,
-                    }),
-                }
+                    title,
+                    instructions,
+                    due_date: dueDate || null,
+                },
+                {},
+                'Unable to create assignment'
             );
-
-            const payload = await response.json();
-            if (!response.ok) {
-                throw new Error(payload?.error ?? 'Unable to create assignment');
-            }
 
             setAssignmentTitle('');
             setAssignment('');
@@ -251,14 +245,15 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         setIsLoadingCourses(true);
         setErrorMessage(null);
 
-        fetch(`/api/courses?student_id=${encodeURIComponent(studentIdValue)}`, {
-            cache: 'no-store',
-        })
-            .then(async (res) => {
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data?.error ?? 'Unable to load courses');
-                }
+        useApi(
+            'courses',
+            'GET',
+            { student_id: studentIdValue },
+            {},
+            { cache: 'no-store' },
+            'Unable to load courses'
+        )
+            .then((data) => {
 
                 const nextCourses = normalizeCourseCodes(data);
 
@@ -291,14 +286,15 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         setIsLoadingAssignments(true);
         setErrorMessage(null);
 
-        fetch(`/api/tasks?student_id=${encodeURIComponent(studentIdValue)}&course_code=${encodeURIComponent(selectedCourse)}`, {
-            cache: 'no-store',
-        })
-            .then(async (res) => {
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data?.error ?? 'Unable to load assignments');
-                }
+        useApi(
+            'tasks',
+            'GET',
+            { student_id: studentIdValue, course_code: selectedCourse },
+            {},
+            { cache: 'no-store' },
+            'Unable to load assignments'
+        )
+            .then((data) => {
 
                 const normalizedAssignments = normalizeAssignments(data);
 

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useApi } from '@hooks/useApi';
 
 export type FocusSession = {
     id: string;
@@ -101,15 +102,14 @@ export function useFocusSessions(studentId: string | number | null): UseFocusSes
         setIsLoading(true);
 
         try {
-            const studentIdValue = String(studentId);
-            const response = await fetch(`/api/focus-sessions?student_id=${encodeURIComponent(studentIdValue)}`, {
-                cache: 'no-store',
-            });
-
-            const payload = await response.json();
-            if (!response.ok) {
-                throw new Error(payload?.error ?? 'Unable to load recent sessions');
-            }
+            const payload = await useApi(
+                'focus-sessions',
+                'GET',
+                { student_id: String(studentId) },
+                {},
+                { cache: 'no-store' },
+                'Unable to load recent sessions'
+            );
 
             setRecentSessions(normalizeSessions(payload));
             setError(null);
@@ -132,29 +132,24 @@ export function useFocusSessions(studentId: string | number | null): UseFocusSes
         setIsSaving(true);
 
         try {
-            const studentIdValue = String(studentId);
             const endDate = new Date();
             const startDate = new Date(endDate.getTime() - durationSeconds * 1000);
             const dayOfWeek = startDate.toLocaleDateString('en-US', { weekday: 'long' });
             const startTime = startDate.toTimeString().slice(0, 8);
             const endTime = endDate.toTimeString().slice(0, 8);
 
-            const response = await fetch(`/api/focus-sessions?student_id=${encodeURIComponent(studentIdValue)}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
+            await useApi(
+                'focus-sessions',
+                'POST',
+                { student_id: String(studentId) },
+                {
                     day_of_week: dayOfWeek,
                     start_time: startTime,
                     end_time: endTime,
-                }),
-            });
-
-            const payload = await response.json();
-            if (!response.ok) {
-                throw new Error(payload?.error ?? 'Unable to save session');
-            }
+                },
+                {},
+                'Unable to save session'
+            );
 
             setError(null);
             await refresh();

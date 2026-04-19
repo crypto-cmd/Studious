@@ -6,6 +6,7 @@ import { Sparkles } from "lucide-react";
 import AppShell from "@components/AppShell";
 import Loading from "@components/Loading";
 import { supabase } from "@lib/supabase";
+import {useApi} from "@hooks/useApi";
 import { sessionStoreActions, useSessionStore } from "@lib/sessionStore";
 
 type SignupDefaults = {
@@ -106,7 +107,6 @@ export default function OnboardingPage() {
         }
 
         let isCancelled = false;
-
         fetch(`/api/student-profile?auth_id=${encodeURIComponent(authId)}`, {
             cache: "no-store",
         })

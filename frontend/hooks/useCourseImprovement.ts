@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useApi } from '@hooks/useApi';
 
 type ImprovementApiResponse = {
     current_grade?: number | string | null;
@@ -80,19 +81,15 @@ export function useCourseImprovement(studentId: string | number | null, courseCo
         setIsLoading(true);
         setError(null);
 
-        const studentIdValue = String(studentId);
-
-        fetch(
-            `/api/improvement?student_id=${encodeURIComponent(studentIdValue)}&course_code=${encodeURIComponent(courseCode)}`,
-            { cache: 'no-store' }
+        useApi(
+            'improvement',
+            'GET',
+            { student_id: String(studentId), course_code: courseCode },
+            {},
+            { cache: 'no-store' },
+            'Unable to load smart nudges'
         )
-            .then(async (response) => {
-                const payload = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(payload?.error ?? 'Unable to load smart nudges');
-                }
-
+            .then((payload) => {
                 return normalizeImprovement(payload);
             })
             .then((nextData) => {
