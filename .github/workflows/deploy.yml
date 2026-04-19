@@ -58,7 +58,7 @@ jobs:
             Group=www-data
             WorkingDirectory=/home/ubuntu/Studious/backend
             Environment="PATH=/home/ubuntu/Studious/backend/.venv/bin"
-            ExecStart=/home/ubuntu/Studious/backend/.venv/bin/gunicorn --workers 3 --bind unix:flaskapp.sock -m 007 app:app
+            ExecStart=/home/ubuntu/Studious/backend/.venv/bin/gunicorn --workers 3 --bind unix:flaskapp.sock -m 007 main:app
 
             [Install]
             WantedBy=multi-user.target
