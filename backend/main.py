@@ -7,6 +7,7 @@ from routes.trajectory_routes import trajectory_bp
 from routes.course_grade_routes import course_grade_bp
 from routes.improvement_routes import improvement_bp
 from routes.student_routes import student_bp
+from routes.focus_session_routes import focus_session_bp
 
 
 # Initialize the Flask application
@@ -17,6 +18,7 @@ app.register_blueprint(trajectory_bp, url_prefix="/api/trajectory")
 app.register_blueprint(course_grade_bp, url_prefix="/api/course-grades")
 app.register_blueprint(improvement_bp, url_prefix="/api/improvement")
 app.register_blueprint(student_bp, url_prefix="/api/students")
+app.register_blueprint(focus_session_bp, url_prefix="/api/focus-sessions")
 
 
 # Optional: Run the app if this file is executed directly

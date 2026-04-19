@@ -125,11 +125,14 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-poppins), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    overflow-x: clip;
   }
 
   html {
     @apply font-sans;
     font-family: var(--font-poppins), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    overflow-y: scroll;
+    overflow-x: clip;
   }
 }
 
@@ -158,6 +161,30 @@
 
   100% {
     transform: scale(1.1);
+  }
+}
+
+@keyframes loading-grid {
+
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.95;
+  }
+
+  25% {
+    transform: translateY(4px) scale(0.82) rotate(8deg);
+    opacity: 0.65;
+  }
+
+  50% {
+    transform: scale(1.08) rotate(0deg);
+    opacity: 1;
+  }
+
+  75% {
+    transform: translateY(-4px) scale(0.86) rotate(-8deg);
+    opacity: 0.7;
   }
 }
 

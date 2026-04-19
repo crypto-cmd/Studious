@@ -6,7 +6,9 @@ assignment_bp = Blueprint('assignment_bp', __name__)
 # Define a route for the home page
 @assignment_bp.route("/<student_id>/<course_code>/create_assignment", methods=["POST"])
 def create_assignment(student_id, course_code):
+    assignment_title = request.get_json().get('title')
     instructions = request.get_json().get('instructions')
+    due_date = request.get_json().get('due_date')
     from computations.PromptChunker import PromptChunker
 
     if not instructions:
@@ -19,10 +21,13 @@ def create_assignment(student_id, course_code):
     saveto_db = db.table("assignments").insert({
         "student_id": student_id,
         "course_code": course_code,
+        "title": assignment_title,
         "tasks": tasks,
+        "due_date": due_date,
     }).execute()
 
     return {
+        "title": assignment_title,
         "tasks": tasks,
         "task_count": task_count,
         "total_xp": total_xp
@@ -53,4 +58,21 @@ def complete_task(student_id, course_code, assignment_id, task_id):
 
     return {"message": "Task marked as completed"}
 
+@assignment_bp.route("/<student_id>/<course_code>/assignments", methods=["GET"])
+def get_assignments(student_id, course_code):
+    assignments = db.table("assignments").select("*").eq("student_id", student_id).eq("course_code", course_code).execute().data
+    return {"assignments": assignments}
+
+
+@assignment_bp.route("/<student_id>/<course_code>/<assignment_id>", methods=["GET"])
+def get_tasks(student_id, course_code, assignment_id):
+    assignment = db.table("assignments").select("*").eq("id", assignment_id).execute().data[0]
+
+    if not assignment:
+        return {"error": "Assignment not found"}, 404
+
+    if str(assignment["student_id"]) != student_id or assignment["course_code"] != course_code:
+        return {"error": "Assignment does not belong to the specified student or course"}, 403
+
+    return {"tasks": assignment["tasks"]}
 

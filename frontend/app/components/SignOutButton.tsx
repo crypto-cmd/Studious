@@ -1,7 +1,7 @@
 "use client";
 
 import { LogOut } from "lucide-react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@lib/supabase";
 
 export default function SignOutButton() {
     const handleSignOut = async () => {

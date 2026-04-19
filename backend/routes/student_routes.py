@@ -13,6 +13,16 @@ def _normalize_gender(value):
     return _clean_text(value).lower()
 
 
+def _to_number_or_none(value):
+    if value is None or value == "":
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def _build_display_name(student_row):
     nickname = _clean_text(student_row.get("nickname"))
     firstname = _clean_text(student_row.get("firstname"))
@@ -61,7 +71,9 @@ def create_student_profile():
     nickname = _clean_text(payload.get("nickname"))
     student_id = _clean_text(payload.get("student_id"))
     gender = _normalize_gender(payload.get("gender"))
+    age_value = _to_number_or_none(payload.get("age"))
     legacy_name = _clean_text(payload.get("name"))
+    onboarding = payload.get("onboarding") if isinstance(payload.get("onboarding"), dict) else {}
 
     if not firstname and not lastname and legacy_name:
         name_parts = legacy_name.split()
@@ -95,12 +107,30 @@ def create_student_profile():
             "nickname": nickname,
             "student_id": student_id,
             "gender": gender,
+            "age": int(age_value) if age_value is not None else None,
         }
     ).execute()
     if not inserted.data:
         return {"error": "Unable to create student profile"}, 500
 
     student_row = inserted.data[0]
+
+    # Onboarding now only stores student-level habits; course-specific setup happens later when a course is created.
+    sleep_hours = _to_number_or_none(onboarding.get("sleep_hours"))
+    exercise_frequency = _to_number_or_none(onboarding.get("exercise_frequency"))
+    mental_health_rating = _to_number_or_none(onboarding.get("mental_health_rating"))
+
+    if any(value is not None for value in [sleep_hours, exercise_frequency, mental_health_rating]):
+        db.table("course_specific_student_data").insert(
+            {
+                "student_id": student_row.get("id"),
+                "course_code": "__onboarding__",
+                "sleep_hours": sleep_hours,
+                "exercise_frequency": exercise_frequency,
+                "mental_health_rating": mental_health_rating,
+            }
+        ).execute()
+
     return _student_response(student_row), 201
 
 
@@ -116,4 +146,39 @@ def get_student_by_auth_id(auth_id):
     return _student_response(student_row)
 
 
+@student_bp.route("/<auth_id>", methods=["PATCH"])
+def update_student_profile(auth_id):
+    payload = request.get_json(silent=True) or {}
+
+    firstname = _clean_text(payload.get("firstname"))
+    lastname = _clean_text(payload.get("lastname"))
+    nickname = _clean_text(payload.get("nickname"))
+
+    if not firstname or not lastname or not nickname:
+        return {"error": "firstname, lastname, and nickname are required"}, 400
+
+    existing = db.table("students").select("*").eq("auth_id", auth_id).execute()
+    if not existing.data:
+        return {"error": "Student not found"}, 404
+
+    display_name = nickname or " ".join(part for part in [firstname, lastname] if part)
+
+    updated = db.table("students").update(
+        {
+            "firstname": firstname,
+            "lastname": lastname,
+            "nickname": nickname,
+            "name": display_name,
+        }
+    ).eq("auth_id", auth_id).execute()
+
+    if not updated.data:
+        return {"error": "Unable to update student profile"}, 500
+
+    return _student_response(updated.data[0]), 200
+
+@student_bp.route("/<student_id>/courses", methods=["GET"])
+def get_courses(student_id):
+    courses = db.table("courses").select("*").eq("student_id",student_id).execute()
+    return courses.data, 200
 
