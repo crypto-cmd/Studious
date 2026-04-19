@@ -106,7 +106,7 @@ def create_student_profile():
                 "firstname": firstname,
                 "lastname": lastname,
                 "nickname": nickname,
-                "student_id": student_id,
+                "id": student_id,
                 "gender": gender,
                 "age": int(age_value) if age_value is not None else None,
             }
