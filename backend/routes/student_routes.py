@@ -64,74 +64,77 @@ def _student_response(student_row):
 
 @student_bp.route("", methods=["POST"])
 def create_student_profile():
-    payload = request.get_json(silent=True) or {}
-    auth_id = _clean_text(payload.get("auth_id"))
-    firstname = _clean_text(payload.get("firstname"))
-    lastname = _clean_text(payload.get("lastname"))
-    nickname = _clean_text(payload.get("nickname"))
-    student_id = _clean_text(payload.get("student_id"))
-    gender = _normalize_gender(payload.get("gender"))
-    age_value = _to_number_or_none(payload.get("age"))
-    legacy_name = _clean_text(payload.get("name"))
-    onboarding = payload.get("onboarding") if isinstance(payload.get("onboarding"), dict) else {}
+    try:
+        payload = request.get_json(silent=True) or {}
+        auth_id = _clean_text(payload.get("auth_id"))
+        firstname = _clean_text(payload.get("firstname"))
+        lastname = _clean_text(payload.get("lastname"))
+        nickname = _clean_text(payload.get("nickname"))
+        student_id = _clean_text(payload.get("student_id"))
+        gender = _normalize_gender(payload.get("gender"))
+        age_value = _to_number_or_none(payload.get("age"))
+        legacy_name = _clean_text(payload.get("name"))
+        onboarding = payload.get("onboarding") if isinstance(payload.get("onboarding"), dict) else {}
 
-    if not firstname and not lastname and legacy_name:
-        name_parts = legacy_name.split()
-        firstname = name_parts[0] if name_parts else ""
-        lastname = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+        if not firstname and not lastname and legacy_name:
+            name_parts = legacy_name.split()
+            firstname = name_parts[0] if name_parts else ""
+            lastname = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
 
-    if not nickname:
-        nickname = legacy_name
+        if not nickname:
+            nickname = legacy_name
 
-    if not auth_id or not firstname or not lastname or not nickname or not student_id or not gender:
-        return {
-            "error": "auth_id, firstname, lastname, nickname, student_id, and gender are required"
-        }, 400
+        if not auth_id or not firstname or not lastname or not nickname or not student_id or not gender:
+            return {
+                "error": "auth_id, firstname, lastname, nickname, student_id, and gender are required"
+            }, 400
 
-    if gender not in {"male", "female", "other"}:
-        return {"error": "gender must be one of: male, female, other"}, 400
+        if gender not in {"male", "female", "other"}:
+            return {"error": "gender must be one of: male, female, other"}, 400
 
-    existing = db.table("students").select("*").eq("auth_id", auth_id).execute()
-    if existing.data:
-        existing_row = existing.data[0]
-        return {
-            "error": "Student profile already exists",
-            **_student_response(existing_row),
-        }, 409
+        existing = db.table("students").select("*").eq("auth_id", auth_id).execute()
+        if existing.data:
+            existing_row = existing.data[0]
+            return {
+                "error": "Student profile already exists",
+                **_student_response(existing_row),
+            }, 409
 
-    inserted = db.table("students").insert(
-        {
-            "auth_id": auth_id,
-            "firstname": firstname,
-            "lastname": lastname,
-            "nickname": nickname,
-            "student_id": student_id,
-            "gender": gender,
-            "age": int(age_value) if age_value is not None else None,
-        }
-    ).execute()
-    if not inserted.data:
-        return {"error": "Unable to create student profile"}, 500
-
-    student_row = inserted.data[0]
-
-    # Onboarding now only stores student-level habits; course-specific setup happens later when a course is created.
-    sleep_hours = _to_number_or_none(onboarding.get("sleep_hours"))
-    exercise_frequency = _to_number_or_none(onboarding.get("exercise_frequency"))
-    mental_health_rating = _to_number_or_none(onboarding.get("mental_health_rating"))
-
-    if any(value is not None for value in [sleep_hours, exercise_frequency, mental_health_rating]):
-        db.table("course_specific_student_data").insert(
+        inserted = db.table("students").insert(
             {
-                "student_id": student_row.get("id"),
-                "course_code": "__onboarding__",
-                "sleep_hours": sleep_hours,
-                "exercise_frequency": exercise_frequency,
-                "mental_health_rating": mental_health_rating,
+                "auth_id": auth_id,
+                "firstname": firstname,
+                "lastname": lastname,
+                "nickname": nickname,
+                "student_id": student_id,
+                "gender": gender,
+                "age": int(age_value) if age_value is not None else None,
             }
         ).execute()
+        if not inserted.data:
+            return {"error": "Unable to create student profile"}, 500
 
-    return _student_response(student_row), 201
+        student_row = inserted.data[0]
+
+        # Onboarding now only stores student-level habits; course-specific setup happens later when a course is created.
+        sleep_hours = _to_number_or_none(onboarding.get("sleep_hours"))
+        exercise_frequency = _to_number_or_none(onboarding.get("exercise_frequency"))
+        mental_health_rating = _to_number_or_none(onboarding.get("mental_health_rating"))
+
+        if any(value is not None for value in [sleep_hours, exercise_frequency, mental_health_rating]):
+            db.table("course_specific_student_data").insert(
+                {
+                    "student_id": student_row.get("id"),
+                    "course_code": "__onboarding__",
+                    "sleep_hours": sleep_hours,
+                    "exercise_frequency": exercise_frequency,
+                    "mental_health_rating": mental_health_rating,
+                }
+            ).execute()
+
+        return _student_response(student_row), 201
+    except Exception as e:
+        return {"error": f"Failed to create student profile: {str(e)}"}, 500
 
 
 @student_bp.route("/<auth_id>", methods=["GET"])

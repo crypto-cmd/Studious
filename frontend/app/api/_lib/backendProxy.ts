@@ -47,10 +47,11 @@ async function parseBackendPayload(response: Response) {
     try {
         return JSON.parse(textPayload);
     } catch {
+        console.error(`[Backend Proxy] Non-JSON response (status ${response.status}):`, textPayload.substring(0, 500));
         return {
             error: response.ok
                 ? 'Unexpected response from backend'
-                : 'Backend returned a non-JSON error response',
+                : `Backend error: ${textPayload.substring(0, 200)}`,
         };
     }
 }

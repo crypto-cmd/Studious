@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, jsonify
 from dotenv import load_dotenv
 
 from data.db import db
@@ -20,6 +20,11 @@ app.register_blueprint(course_grade_bp, url_prefix="/api/course-grades")
 app.register_blueprint(improvement_bp, url_prefix="/api/improvement")
 app.register_blueprint(student_bp, url_prefix="/api/students")
 app.register_blueprint(focus_session_bp, url_prefix="/api/focus-sessions")
+
+# Global error handler to ensure all errors return JSON
+@app.errorhandler(Exception)
+def handle_error(error):
+    return jsonify({"error": str(error) or "An unexpected error occurred"}), 500
 
 @app.route('/')
 def home():
