@@ -28,6 +28,32 @@ To avoid OAuth redirecting back to localhost in production:
 		 - `https://your-custom-domain.com/*`
 		 - `http://localhost:3000/*` (for local development only)
 
+## PWA Setup
+
+This app is configured as a Progressive Web App with:
+
+- Web app manifest at `/manifest.webmanifest`
+- Service worker at `/sw.js` (registered in production)
+- Installable app metadata in the root layout
+
+### Testing PWA installability
+
+Service workers are only registered in production mode.
+
+1. Build and run production locally:
+
+```bash
+npm run build
+npm run start
+```
+
+2. Open `http://localhost:3000`
+3. In Chrome/Edge, check for the install button in the address bar.
+
+### Updating service worker cache
+
+When changing caching behavior in `public/sw.js`, bump `CACHE_VERSION` so old caches are removed on next visit.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
