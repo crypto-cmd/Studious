@@ -18,4 +18,4 @@ jobs:
       - name: Push to Hub
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: git push --force https://crypto-cmd:$HF_TOKEN@huggingface.co/spaces/crypto-cmd/studious-backend main
+        run: git push --force https://crypto-cmd:$HF_TOKEN@huggingface.co/spaces/crypto-cmd/studious-backend deploy

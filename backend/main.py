@@ -28,6 +28,7 @@ def handle_error(error):
 
 @app.route('/')
 def home():
-    return "Hello, World! This Flask app is deployed via GitHub Actions."
+    return "Hello, World! This Flask app is deployed via GitHub Actions to Huggingface."
+
 if __name__ == "__main__":
     app.run(debug=True)
