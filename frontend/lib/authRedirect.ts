@@ -6,6 +6,9 @@ function normalizeBaseUrl(value: string): string {
 
 export function getAuthRedirectUrl(pathname: string): string {
     const normalizedPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
-    const baseUrl = configuredSiteUrl ? normalizeBaseUrl(configuredSiteUrl) : window.location.origin;
+    // OAuth PKCE flow stores verifier data per-origin in browser storage.
+    // Always using the current origin avoids cross-domain callback mismatches.
+    const browserOrigin = normalizeBaseUrl(window.location.origin);
+    const baseUrl = browserOrigin || (configuredSiteUrl ? normalizeBaseUrl(configuredSiteUrl) : browserOrigin);
     return `${baseUrl}${normalizedPath}`;
 }
