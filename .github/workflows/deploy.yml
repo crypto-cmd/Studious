@@ -15,10 +15,13 @@ jobs:
 
       - name: Provision and Deploy via SSH
         uses: appleboy/ssh-action@v1.0.0
+        env:
+          ENV_FILE_SECRET: ${{ secrets.ENV_FILE }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: ENV_FILE_SECRET
           script: |
             # Exit immediately if ANY command fails
             set -e 
@@ -55,6 +58,8 @@ jobs:
             uv venv # Automatically creates a .venv directory
             uv pip install -r requirements.txt # Automatically detects and uses the .venv
 
+            echo "$ENV_FILE_SECRET" > .env
+            
             # 5. Create Gunicorn Systemd Service
             cat << 'EOF' | sudo tee /etc/systemd/system/flaskapp.service > /dev/null
             [Unit]
