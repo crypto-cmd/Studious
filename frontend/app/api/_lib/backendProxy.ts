@@ -15,22 +15,23 @@ function buildRequestInit(options: BackendRequestOptions): RequestInit {
     const method = options.method ?? 'GET';
 
     const headers = new Headers(options.headers);
-    
+
     if (process.env.HF_TOKEN) {
         headers.set('Authorization', `Bearer ${process.env.HF_TOKEN}`);
     }
+
+    if (options.body !== undefined && !headers.has('Content-Type')) {
+        headers.set('Content-Type', 'application/json');
+    }
+
     const init: RequestInit = {
         method,
         cache: options.cache ?? 'no-store',
-        headers: options.headers,
+        headers,
     };
 
     if (options.body !== undefined) {
         init.body = JSON.stringify(options.body);
-        init.headers = {
-            'Content-Type': 'application/json',
-            ...(options.headers ?? {}),
-        };
     }
 
     return init;

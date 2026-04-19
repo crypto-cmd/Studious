@@ -23,7 +23,6 @@ export async function signInWithGoogle() {
   }
 }
 
-// Example Login Button Component
 export default function LoginButton() {
   return (
     <button

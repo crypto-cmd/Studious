@@ -203,11 +203,13 @@ export default function App() {
         }
 
         if (!response.ok) {
-          if (response.status === 404 && authIntent === "signin") {
-            // Sign in attempt failed - no profile exists. Sign out and show error.
+          if ((response.status === 401 || response.status === 403 || response.status === 404) && authIntent === "signin") {
+            // Sign in attempt failed - the account could not be verified against an existing profile.
             await supabase.auth.signOut().catch(() => { });
             setAuthError(
-              "This account doesn't have a student profile. Please sign up to create one."
+              response.status === 404
+                ? "This account doesn't have a student profile. Please sign up to create one."
+                : "Unable to verify your account. Please try signing in again."
             );
             sessionStoreActions.setAuthId(null);
             setAuthIntent(null);
@@ -220,6 +222,7 @@ export default function App() {
 
           if (response.status !== 404) {
             console.error("Error loading student profile:", payload?.error ?? response.statusText);
+            setAuthError(payload?.error ?? "Unable to load your profile right now.");
           }
           setStudentName(null);
           sessionStoreActions.setStudentId(null);
