@@ -1,5 +1,6 @@
 from flask import Flask, request, Blueprint
 from data.db import db
+from vector_store.Pinecone import query_chunks
 
 assignment_bp = Blueprint('assignment_bp', __name__)
 
@@ -9,13 +10,19 @@ def create_assignment(student_id, course_code):
     assignment_title = request.get_json().get('title')
     instructions = request.get_json().get('instructions')
     due_date = request.get_json().get('due_date')
+
+    matches = query_chunks(instructions, course_code)
+
+    context = "\n".join([m["chunk_text"] for m in matches])
+
     from computations.PromptChunker import PromptChunker
+
 
     if not instructions:
         return {"error": "Instructions parameter is required"}, 400
 
     chunker = PromptChunker(instructions)
-    tasks = chunker.get_tasks_from_ai(instructions)
+    tasks = chunker.get_tasks_from_ai(instructions, context)
     task_count = chunker.task_counter(tasks)
     total_xp = chunker.xp_calculator(tasks)
     saveto_db = db.table("assignments").insert({

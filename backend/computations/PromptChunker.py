@@ -15,41 +15,49 @@ class PromptChunker:
         self.instructions = instructions
         self.task= []
 
-    def get_tasks_from_ai(self, instruction):
-            client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-            chat_completion = client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "user",
-                        "content": instruction + """
-                Break down the task above into smaller tasks.
+    def get_tasks_from_ai(self, instruction, context=""):
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-                Rules:
-                - Each task must be 1–2 sentences.
-                - Assign XP points based on difficulty.
-                - Total XP must not exceed 100.
-                - XP must be an integer (not a string).
-                - Output ONLY valid JSON.
+        full_prompt = f"""
+        Use the context below to answer the question, then break it into actionable study tasks.
 
-                Format:
-                [
-                {"task": "Task description", "xp": xp_points}
-                ]
-                """,
-                    }
-                ],
-                model="llama-3.3-70b-versatile",
-                temperature=0
-            )
-            response = chat_completion.choices[0].message.content
+        Context:
+        {context}
 
-            data = json.loads(response)
-            for item in data:
-                item["id"] = str(uuid.uuid4())
-                item["completed"] = False
-                
-            return data
-        #how to parse json objects using regular expressions in python
+        Question:
+        {instruction}
+
+        Then:
+        Break the answer into smaller tasks.
+
+        Rules:
+        - Each task must be 1–2 sentences.
+        - Assign XP points based on difficulty.
+        - Total XP must not exceed 100.
+        - XP must be an integer.
+        - Output ONLY valid JSON.
+
+        Format:
+        [
+            {{"task": "Task description", "xp": xp_points}}
+        ]
+        """
+
+        chat_completion = client.chat.completions.create(
+            messages=[{"role": "user", "content": full_prompt}],
+            model="llama-3.3-70b-versatile",
+            temperature=0
+        )
+
+        response = chat_completion.choices[0].message.content
+
+        data = json.loads(response)
+
+        for item in data:
+            item["id"] = str(uuid.uuid4())
+            item["completed"] = False
+
+        return data
 
     def task_counter(self, task_list):
         count = 0
