@@ -1,6 +1,7 @@
+import { fetchBackendPayload, proxyBackend } from '../_lib/backendProxy';
+
 export async function POST(request: Request) {
     const payload = await request.json();
-    const backendUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:5000";
 
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("student_id");
@@ -10,17 +11,10 @@ export async function POST(request: Request) {
         return Response.json({ error: "Missing student_id or course_code" }, { status: 400 });
     }
 
-    const response = await fetch(`${backendUrl}/api/assignments/${studentId}/${courseCode}/create_assignment`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-        cache: "no-store",
+    return proxyBackend(`/api/assignments/${studentId}/${courseCode}/create_assignment`, {
+        method: 'POST',
+        body: payload,
     });
-
-    const responsePayload = await response.json();
-    return Response.json(responsePayload, { status: response.status });
 }
 
 export async function GET(request: Request) {
@@ -34,26 +28,38 @@ export async function GET(request: Request) {
 
     // Get the assignments for the student and course
 
-    const backendUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:5000";
-    const assignmentsResponse = await fetch(`${backendUrl}/api/assignments/${studentId}/${courseCode}/assignments`, {
-        cache: "no-store",
-    });
+    const { response: assignmentsResponse, payload } = await fetchBackendPayload(
+        `/api/assignments/${studentId}/${courseCode}/assignments`
+    );
 
-    const payload = await assignmentsResponse.json();
+    if (!payload || typeof payload !== 'object') {
+        return Response.json(payload, { status: assignmentsResponse.status });
+    }
+
+    const payloadRecord = payload as { assignments?: unknown[] };
+    const assignmentsList = Array.isArray(payloadRecord.assignments) ? payloadRecord.assignments : [];
 
     // Get the tasks for each assignment
-    const tasksPromises = payload.assignments.map(async (assignment: any) => {
-        const tasksResponse = await fetch(`${backendUrl}/api/assignments/${studentId}/${courseCode}/${assignment.id}`, {
-            cache: "no-store",
-        });
-        const tasksPayload = await tasksResponse.json();
-        return { ...assignment, tasks: tasksPayload.tasks };
+    const tasksPromises = assignmentsList.map(async (assignment) => {
+        const assignmentRecord = assignment as Record<string, unknown>;
+        const assignmentId = String(assignmentRecord.id ?? '');
+
+        const { payload: tasksPayload } = await fetchBackendPayload(
+            `/api/assignments/${studentId}/${courseCode}/${assignmentId}`
+        );
+
+        const tasks =
+            tasksPayload && typeof tasksPayload === 'object' && 'tasks' in tasksPayload
+                ? (tasksPayload as { tasks?: unknown }).tasks
+                : [];
+
+        return { ...assignmentRecord, tasks };
     });
 
     const assignmentsWithTasks = await Promise.all(tasksPromises);
-    payload.assignments = assignmentsWithTasks;
+    payloadRecord.assignments = assignmentsWithTasks;
 
-    return Response.json(payload, { status: assignmentsResponse.status });
+    return Response.json(payloadRecord, { status: assignmentsResponse.status });
 }
 
 export async function PATCH(request: Request) {
@@ -70,15 +76,10 @@ export async function PATCH(request: Request) {
         );
     }
 
-    const backendUrl = process.env.BACKEND_URL ?? "http://127.0.0.1:5000";
-    const response = await fetch(
-        `${backendUrl}/api/assignments/${studentId}/${courseCode}/${assignmentId}/complete_task/${taskId}`,
+    return proxyBackend(
+        `/api/assignments/${studentId}/${courseCode}/${assignmentId}/complete_task/${taskId}`,
         {
-            method: "PATCH",
-            cache: "no-store",
+            method: 'PATCH',
         }
     );
-
-    const payload = await response.json();
-    return Response.json(payload, { status: response.status });
 }

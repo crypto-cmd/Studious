@@ -56,7 +56,7 @@ const EMPTY_ONBOARDING_FORM: OnboardingForm = {
   finalPredictedGrade: "",
 };
 
-const MIN_LOGIN_LOADING_MS = 10000;
+const MIN_LOGIN_LOADING_MS = 2000;
 
 function buildSignupDefaults(sessionUser: {
   user_metadata?: Record<string, unknown>;
@@ -83,7 +83,6 @@ function buildDisplayName(firstname: string, lastname: string, nickname: string)
 
 export default function App() {
   const authId = useSessionStore((snapshot) => snapshot.authId);
-  const studentId = useSessionStore((snapshot) => snapshot.studentId);
   const [studentName, setStudentName] = useState<string | null>(null);
   const [defaultSignupProfile, setDefaultSignupProfile] = useState<SignupDefaults>(EMPTY_SIGNUP_DEFAULTS);
   const [authIntent, setAuthIntent] = useState<AuthIntent>(null);
