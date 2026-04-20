@@ -17,6 +17,7 @@ export type Course = {
     finalPredictedGrade: number | null;
     finalExamDate: string | null;
     predictedGrades: CoursePrediction[];
+    sources: string[];
 };
 
 type CourseRow = {
@@ -27,6 +28,7 @@ type CourseRow = {
     final_predicted_grade?: string | number | null;
     final_exam_date?: string | null;
     final_exam_month?: string | number | null;
+    sources?: string[] | null;
     predicted_grades?: Array<{
         grade?: string | number | null;
         month?: string | number | null;
@@ -208,6 +210,9 @@ function normalizeCourses(payload: unknown): Course[] {
                 : null,
             finalExamDate: typeof courseRow.final_exam_date === 'string' ? courseRow.final_exam_date : null,
             predictedGrades,
+            sources: Array.isArray(courseRow.sources)
+                ? courseRow.sources.filter((source): source is string => typeof source === 'string' && source.trim().length > 0)
+                : [],
         };
     });
 }

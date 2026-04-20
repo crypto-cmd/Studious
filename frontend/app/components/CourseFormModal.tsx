@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { X } from 'lucide-react';
+import { FileText, X } from 'lucide-react';
 import type { Course } from '@hooks/useCourses';
 
 type CourseFormModalProps = {
@@ -26,6 +26,7 @@ type CourseFormModalProps = {
 export default function CourseFormModal({
     isOpen,
     mode,
+    course,
     formState,
     onFormChange,
     onSubmit,
@@ -38,6 +39,7 @@ export default function CourseFormModal({
 }: CourseFormModalProps) {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [fileError, setFileError] = useState<string | null>(null);
+    const materialCount = course?.sources?.length ?? 0;
 
     if (!isOpen) {
         return null;
@@ -157,6 +159,14 @@ export default function CourseFormModal({
                                 {uploadStatusMessage && <p className="text-xs text-cyan-300">{uploadStatusMessage}</p>}
                                 {fileError && <p className="text-xs text-red-300">{fileError}</p>}
                             </div>
+                        </div>
+                    )}
+
+                    {mode === 'edit' && (
+                        <div className="mb-5 flex items-center gap-2 rounded-xl border border-[#1b3f3a] bg-[#0d2522] px-3 py-2 text-sm text-gray-200">
+                            <FileText className="h-4 w-4 text-cyan-400" />
+                            <span className="font-semibold text-cyan-300">{materialCount}</span>
+                            <span>{materialCount === 1 ? 'course material' : 'course materials'} uploaded</span>
                         </div>
                     )}
 
