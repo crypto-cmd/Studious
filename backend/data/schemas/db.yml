@@ -1,0 +1,61 @@
+tables: 
+  students:
+    columns:
+      id : primary key, int4
+      name : varchar
+      age : numeric
+      gender : text
+      auth_id : foreign key, uuid
+      firstname : text
+      lastname : text
+      nickname : text
+
+  courses:
+    columns:
+      code : primary key, varchar 
+      student_id : primary key, int4
+      title : varchar
+      current_predicted_grade : float8
+      final_exam_date : date
+      predicted_grades : jsonb
+      final_predicted_grade : float4
+
+  assignments:
+    columns:
+      id : primary key, uuid
+      course_code : foreign key, varchar
+      student_id : foreign key, int4
+      title : text
+      instructions : text
+      tasks : jsonb
+      due_date : date
+
+  coarse_specific_student_data:
+    columns:
+      id : primary_key, uuid
+      student_id : foreign key, int4
+      course_code : foreign key, varchar
+      attendance_percentage : numeric
+      sleep_hours : numeric
+      excercise_frequency : numeric
+      mental_health_rating : numeric
+      study_hours_per_day : numeric
+      created_date : timestamp
+      updated_at: timesamp
+
+  focus_sessions:
+    columns:
+      student_id : foreign key, int4
+      day_of_week : varchar
+      start_time : text
+      end_time : text
+      id : primary_key, int4
+      created_at : timestampz
+
+  peak_focus_slots:
+    columns:
+      slot_id : primary_key, int4
+      student_id : int4
+      day_of_week : varchar 
+      start_time : time
+      end_time : time
