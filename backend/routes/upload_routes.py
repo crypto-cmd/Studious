@@ -41,6 +41,6 @@ def retrieve_source(student_id, course_code):
     sources = course.data[0].get("sources", [])
 
     return {
-        "course_code" : course_code
+        "course_code" : course_code,
         "sources" : sources
     }
