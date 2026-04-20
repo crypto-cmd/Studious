@@ -1,7 +1,7 @@
 from pinecone import Pinecone
 from dotenv import load_dotenv
 
-import itertools
+import more_itertools
 import os
 load_dotenv()
 
@@ -11,10 +11,11 @@ index = pc.Index(INDEX_NAME)
 
 
 def upsert_chunks(chunks, class_id, user_id, file_name):
-    records = []
-    batches = [list(batch) for batch in itertools.batched(chunks,90)]
+    batches = [list(batch) for batch in more_itertools.chunked(chunks,90)]
 
     for i, batch in enumerate(batches):
+        records = []
+        print(len(batch))
         for j, chunk in enumerate(batch):
             records.append({
                 "_id": f"{file_name}_{i}_{j}",

@@ -2,6 +2,7 @@ from flask import Flask, request, Blueprint
 import uuid
 import shutil
 import io
+from data.db import db
 
 from computations.vector_store.pdfProcessor import extract_text, chunk_text
 from computations.vector_store.Pinecone import upsert_chunks
