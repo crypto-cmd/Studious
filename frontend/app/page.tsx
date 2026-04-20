@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import AppShell from "@components/AppShell";
 import BottomNav, { TabId } from "@components/BottomNav";
 import ComingSoon from "@components/ComingSoon";
@@ -123,6 +124,9 @@ function buildDisplayName(firstname: string, lastname: string, nickname: string)
 }
 
 export default function App() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const authId = useSessionStore((snapshot) => snapshot.authId);
   const [isAuthInitializing, setIsAuthInitializing] = useState<boolean>(true);
   const [studentName, setStudentName] = useState<string | null>(null);
@@ -163,18 +167,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tabFromUrl = params.get("tab");
-    const courseFromUrl = params.get("course");
+    const tabFromUrl = searchParams.get("tab");
+    const courseFromUrl = searchParams.get("course");
 
     if (tabFromUrl === "analytics" || tabFromUrl === "home" || tabFromUrl === "tasks" || tabFromUrl === "timer" || tabFromUrl === "calendar") {
       setActiveTab(tabFromUrl as TabId);
     }
 
     if (courseFromUrl) {
-      setSelectedCourseCode(decodeURIComponent(courseFromUrl));
+      setSelectedCourseCode(courseFromUrl);
     }
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -542,6 +545,14 @@ export default function App() {
       return;
     }
 
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set("tab", tab);
+    if (tab !== "analytics") {
+      nextParams.delete("course");
+    }
+
+    const nextUrl = `${pathname}?${nextParams.toString()}`;
+
     const docWithTransition = document as Document & {
       startViewTransition?: (update: () => void) => void;
     };
@@ -549,11 +560,13 @@ export default function App() {
     if (typeof docWithTransition.startViewTransition === "function") {
       docWithTransition.startViewTransition(() => {
         setActiveTab(tab);
+        router.replace(nextUrl);
       });
       return;
     }
 
     setActiveTab(tab);
+    router.replace(nextUrl);
   };
 
   const activeContent = useMemo(() => {
@@ -580,7 +593,7 @@ export default function App() {
       default:
         return <HomeDashboard studentName={studentName} />;
     }
-  }, [activeTab, studentName]);
+  }, [activeTab, selectedCourseCode, studentName]);
 
   const copyDiagnostics = async () => {
     const diagnostics = {
