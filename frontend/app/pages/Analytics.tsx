@@ -155,10 +155,10 @@ function buildInsightClassName(tone: InsightCard['tone']) {
     return 'bg-[#132e2a] border border-[#1b3f3a]';
 }
 
-export default function AnalyticsDashboard() {
+export default function AnalyticsDashboard({ selectedCourseCode: initialCourseCode = "" }: { selectedCourseCode?: string }) {
     const studentId = useSessionStore((snapshot) => snapshot.studentId);
     const { courses, isLoading, error } = useCourses(studentId);
-    const [selectedCourseCode, setSelectedCourseCode] = useState('');
+    const [selectedCourseCode, setSelectedCourseCode] = useState(initialCourseCode);
     const selectedCourse = useMemo(() => {
         if (!courses.length) {
             return null;
@@ -173,20 +173,23 @@ export default function AnalyticsDashboard() {
         error: improvementError,
     } = useCourseImprovement(studentId, selectedCourse?.code ?? '');
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (courses.length === 0) {
             setSelectedCourseCode('');
             return;
         }
 
-        setSelectedCourseCode((currentCode) => {
-            if (currentCode && courses.some((course) => course.code === currentCode)) {
-                return currentCode;
+        setSelectedCourseCode((current) => {
+            // If current selection is still valid, keep it
+            if (current && courses.some((course) => course.code === current)) {
+                return current;
             }
 
+            // Default to first course
             return courses[0]?.code ?? '';
         });
-    }, [courses]);
+    }, [courses.length]);
 
     const insightCards = useMemo(
         () => buildInsightCards(selectedCourse, improvementData),
