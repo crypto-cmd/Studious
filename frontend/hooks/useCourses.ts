@@ -53,8 +53,6 @@ export type CourseMutationPayload = {
     finalExamDate?: string;
 };
 
-const courseCacheByStudent = new Map<string, Course[]>();
-
 function formatExamDate(value: string | number | null | undefined) {
     if (!value) {
         return 'No exam date set';
@@ -234,17 +232,7 @@ export function useCourses(studentId: string | number | null): UseCoursesResult 
             return;
         }
 
-        const cacheKey = String(studentId);
-        const cachedCourses = courseCacheByStudent.get(cacheKey);
-
-        if (cachedCourses) {
-            setCourses(cachedCourses);
-            setIsLoading(false);
-        }
-
-        if (!cachedCourses) {
-            setIsLoading(true);
-        }
+        setIsLoading(true);
         setError(null);
 
         try {
@@ -256,13 +244,9 @@ export function useCourses(studentId: string | number | null): UseCoursesResult 
                 { cache: 'no-store' },
                 'Unable to load courses'
             );
-            const normalizedCourses = normalizeCourses(payload);
-            setCourses(normalizedCourses);
-            courseCacheByStudent.set(cacheKey, normalizedCourses);
+            setCourses(normalizeCourses(payload));
         } catch (nextError: unknown) {
-            if (!cachedCourses) {
-                setCourses([]);
-            }
+            setCourses([]);
             setError(nextError instanceof Error ? nextError.message : 'Unable to load courses');
         } finally {
             setIsLoading(false);

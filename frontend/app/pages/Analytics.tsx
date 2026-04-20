@@ -212,9 +212,7 @@ export default function AnalyticsDashboard({ selectedCourseCode: initialCourseCo
 
                     {error && <p className="text-sm text-red-300 px-2 mb-3">{error}</p>}
 
-                    {isLoading && courses.length === 0 && (
-                        <p className="text-sm text-gray-400 px-2 mb-3">Loading courses...</p>
-                    )}
+                    {isLoading && <p className="text-sm text-gray-400 px-2 mb-3">Loading courses...</p>}
 
                     {!isLoading && courses.length === 0 && !error && (
                         <p className="text-sm text-gray-400 px-2 mb-3">No course records found yet.</p>
