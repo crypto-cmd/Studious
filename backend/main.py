@@ -11,6 +11,7 @@ from routes.improvement_routes import improvement_bp
 from routes.student_routes import student_bp
 from routes.auth_routes import auth_bp
 from routes.focus_session_routes import focus_session_bp
+from routes.upload_routes import source_bp
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -23,6 +24,7 @@ app.register_blueprint(improvement_bp, url_prefix="/api/improvement")
 app.register_blueprint(auth_bp, url_prefix="/api/auth")
 app.register_blueprint(student_bp, url_prefix="/api/students")
 app.register_blueprint(focus_session_bp, url_prefix="/api/focus-sessions")
+app.register_blueprint(source_bp, url_prefix="/api/upload")
 
 @app.route("/routes.md")
 def serve_routes_md():

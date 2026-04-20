@@ -1,5 +1,5 @@
 from flask import Blueprint, request
-
+from computations.vector_store.Pinecone import query_chunks
 from data.db import db
 
 assignment_bp = Blueprint("assignment_bp", __name__)
@@ -15,15 +15,19 @@ def create_assignment(student_id, course_code):
     if not instructions:
         return {"error": "Instructions parameter is required"}, 400
 
+    matches = query_chunks(instructions, student_id, course_code)
+
+    context = "\n".join([m["fields"]["text"] for m in matches])
     from computations.PromptChunker import PromptChunker
 
     chunker = PromptChunker(instructions)
-    tasks = chunker.get_tasks_from_ai(instructions)
+    tasks = chunker.get_tasks_from_ai(instructions, context)
     task_count = chunker.task_counter(tasks)
     total_xp = chunker.xp_calculator(tasks)
 
     db.table("assignments").insert(
         {
+            "context": context,
             "student_id": student_id,
             "course_code": course_code,
             "title": assignment_title,
