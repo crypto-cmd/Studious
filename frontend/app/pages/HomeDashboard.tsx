@@ -46,6 +46,8 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
   const [editingCourseCode, setEditingCourseCode] = useState<string | null>(null);
   const [formState, setFormState] = useState<CourseFormState>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
+  const [uploadStatusMessage, setUploadStatusMessage] = useState<string | null>(null);
+  const [isUploadingMaterial, setIsUploadingMaterial] = useState(false);
   const [pendingDeleteCode, setPendingDeleteCode] = useState<string | null>(null);
 
   const displayName = studentName?.trim() || 'Student';
@@ -60,6 +62,7 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
     setEditingCourseCode(null);
     setFormState(EMPTY_FORM);
     setFormError(null);
+    setUploadStatusMessage(null);
     setIsFormOpen(true);
   };
 
@@ -72,6 +75,7 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
       finalExamDate: course.finalExamDate ?? '',
     });
     setFormError(null);
+    setUploadStatusMessage(null);
     setIsFormOpen(true);
   };
 
@@ -84,6 +88,52 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
     setEditingCourseCode(null);
     setFormState(EMPTY_FORM);
     setFormError(null);
+    setUploadStatusMessage(null);
+  };
+
+  const handleUploadCourseMaterial = async (file: File) => {
+    if (studentId == null) {
+      throw new Error('Missing student ID.');
+    }
+
+    if (!editingCourseCode) {
+      throw new Error('Open an existing course to upload material.');
+    }
+
+    const isPdfMime = file.type === 'application/pdf';
+    const hasPdfExtension = file.name.toLowerCase().endsWith('.pdf');
+    if (!isPdfMime && !hasPdfExtension) {
+      throw new Error('Only PDF files are supported.');
+    }
+
+    setIsUploadingMaterial(true);
+    setUploadStatusMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(
+        `/api/course-material?student_id=${encodeURIComponent(String(studentId))}&course_code=${encodeURIComponent(editingCourseCode)}`,
+        {
+          method: 'POST',
+          body: formData,
+        }
+      );
+
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message = payload && typeof payload === 'object' && 'error' in payload
+          ? String((payload as { error?: string }).error)
+          : 'Unable to upload course PDF.';
+        throw new Error(message);
+      }
+
+      setUploadStatusMessage('Course PDF uploaded successfully.');
+    } finally {
+      setIsUploadingMaterial(false);
+    }
   };
 
   const handleSubmitCourse = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -181,8 +231,11 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
           onFormChange={(field, value) => setFormState((current) => ({ ...current, [field]: value }))}
           onSubmit={handleSubmitCourse}
           onClose={closeForm}
+          onUploadMaterial={formMode === 'edit' ? handleUploadCourseMaterial : undefined}
+          isUploadingMaterial={isUploadingMaterial}
+          uploadStatusMessage={uploadStatusMessage}
           error={combinedError}
-          isLoading={isMutating}
+          isLoading={isMutating || isUploadingMaterial}
         />
 
         {coursesError && <p className="text-sm text-red-300 px-2 mb-3">{coursesError}</p>}

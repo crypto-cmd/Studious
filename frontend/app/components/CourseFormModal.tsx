@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { X } from 'lucide-react';
 import type { Course } from '@hooks/useCourses';
 
@@ -15,6 +16,9 @@ type CourseFormModalProps = {
     onFormChange: (field: 'code' | 'title' | 'finalExamDate', value: string) => void;
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     onClose: () => void;
+    onUploadMaterial?: (file: File) => Promise<void>;
+    isUploadingMaterial?: boolean;
+    uploadStatusMessage?: string | null;
     error?: string | null;
     isLoading?: boolean;
 };
@@ -26,12 +30,55 @@ export default function CourseFormModal({
     onFormChange,
     onSubmit,
     onClose,
+    onUploadMaterial,
+    isUploadingMaterial = false,
+    uploadStatusMessage,
     error,
     isLoading = false,
 }: CourseFormModalProps) {
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [fileError, setFileError] = useState<string | null>(null);
+
     if (!isOpen) {
         return null;
     }
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const nextFile = event.target.files?.[0] ?? null;
+
+        if (!nextFile) {
+            setSelectedFile(null);
+            setFileError(null);
+            return;
+        }
+
+        const isPdfMime = nextFile.type === 'application/pdf';
+        const hasPdfExtension = nextFile.name.toLowerCase().endsWith('.pdf');
+
+        if (!isPdfMime && !hasPdfExtension) {
+            setSelectedFile(null);
+            setFileError('Only PDF files are supported.');
+            return;
+        }
+
+        setSelectedFile(nextFile);
+        setFileError(null);
+    };
+
+    const handleUploadClick = async () => {
+        if (!selectedFile || !onUploadMaterial) {
+            return;
+        }
+
+        setFileError(null);
+
+        try {
+            await onUploadMaterial(selectedFile);
+            setSelectedFile(null);
+        } catch (uploadError) {
+            setFileError(uploadError instanceof Error ? uploadError.message : 'Unable to upload PDF.');
+        }
+    };
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -87,6 +134,31 @@ export default function CourseFormModal({
                             disabled={isLoading}
                         />
                     </label>
+
+                    {mode === 'edit' && onUploadMaterial && (
+                        <div className="rounded-xl border border-[#1b3f3a] bg-[#0d2522] p-3">
+                            <p className="text-sm font-semibold text-gray-200 mb-2">Course Material (PDF)</p>
+                            <div className="flex flex-col gap-2">
+                                <input
+                                    type="file"
+                                    accept="application/pdf,.pdf"
+                                    onChange={handleFileChange}
+                                    disabled={isLoading || isUploadingMaterial}
+                                    className="block w-full text-xs text-gray-300 file:mr-3 file:rounded-lg file:border file:border-[#1b3f3a] file:bg-[#091f1c] file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-cyan-300 hover:file:border-cyan-400/50 disabled:opacity-50"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleUploadClick}
+                                    disabled={!selectedFile || isLoading || isUploadingMaterial}
+                                    className="self-start rounded-lg border border-cyan-500/60 px-3 py-1.5 text-xs font-semibold text-cyan-300 hover:bg-cyan-500/10 disabled:opacity-50"
+                                >
+                                    {isUploadingMaterial ? 'Uploading PDF...' : 'Upload PDF'}
+                                </button>
+                                {uploadStatusMessage && <p className="text-xs text-cyan-300">{uploadStatusMessage}</p>}
+                                {fileError && <p className="text-xs text-red-300">{fileError}</p>}
+                            </div>
+                        </div>
+                    )}
 
                     {error && <p className="text-sm text-red-300">{error}</p>}
 

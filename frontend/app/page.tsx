@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import AppShell from "@components/AppShell";
 import BottomNav, { TabId } from "@components/BottomNav";
@@ -123,10 +123,34 @@ function buildDisplayName(firstname: string, lastname: string, nickname: string)
   return nickname.trim() || [firstname.trim(), lastname.trim()].filter(Boolean).join(" ");
 }
 
+function SearchParamSync({
+  onTabParam,
+  onCourseParam,
+}: {
+  onTabParam: (tab: TabId) => void;
+  onCourseParam: (courseCode: string) => void;
+}) {
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    const courseFromUrl = searchParams.get("course");
+
+    if (tabFromUrl === "analytics" || tabFromUrl === "home" || tabFromUrl === "tasks" || tabFromUrl === "timer" || tabFromUrl === "calendar") {
+      onTabParam(tabFromUrl as TabId);
+    }
+
+    if (courseFromUrl) {
+      onCourseParam(courseFromUrl);
+    }
+  }, [onCourseParam, onTabParam, searchParams]);
+
+  return null;
+}
+
 export default function App() {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const authId = useSessionStore((snapshot) => snapshot.authId);
   const [isAuthInitializing, setIsAuthInitializing] = useState<boolean>(true);
   const [studentName, setStudentName] = useState<string | null>(null);
@@ -165,19 +189,6 @@ export default function App() {
     const inAppBrowserPattern = /FBAN|FBAV|Instagram|Line|; wv\)|WebView/i;
     setIsProbablyInAppBrowser(inAppBrowserPattern.test(userAgent));
   }, []);
-
-  useEffect(() => {
-    const tabFromUrl = searchParams.get("tab");
-    const courseFromUrl = searchParams.get("course");
-
-    if (tabFromUrl === "analytics" || tabFromUrl === "home" || tabFromUrl === "tasks" || tabFromUrl === "timer" || tabFromUrl === "calendar") {
-      setActiveTab(tabFromUrl as TabId);
-    }
-
-    if (courseFromUrl) {
-      setSelectedCourseCode(courseFromUrl);
-    }
-  }, [searchParams]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -545,7 +556,7 @@ export default function App() {
       return;
     }
 
-    const nextParams = new URLSearchParams(searchParams.toString());
+    const nextParams = new URLSearchParams(window.location.search);
     nextParams.set("tab", tab);
     if (tab !== "analytics") {
       nextParams.delete("course");
@@ -975,6 +986,9 @@ export default function App() {
 
   return (
     <AppShell>
+      <Suspense fallback={null}>
+        <SearchParamSync onTabParam={setActiveTab} onCourseParam={setSelectedCourseCode} />
+      </Suspense>
       <div className="mb-4 flex justify-end">
         <ProfileButton studentName={studentName} />
       </div>
