@@ -64,3 +64,4 @@ zstandard==0.25.0
 gunicorn==21.2.0
 pinecone
 pyPDF2
+more-itertools
