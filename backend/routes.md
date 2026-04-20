@@ -236,10 +236,6 @@ parameters:
     required: true
     schema:
       type: object
-      required:
-        - firstname
-        - lastname
-        - nickname
       properties:
         firstname:
           type: string
@@ -444,10 +440,6 @@ parameters:
     required: true
     schema:
       type: object
-      required:
-        - firstname
-        - lastname
-        - nickname
       properties:
         firstname:
           type: string

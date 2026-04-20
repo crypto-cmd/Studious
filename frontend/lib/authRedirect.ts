@@ -1,5 +1,6 @@
 const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
+console.log("Configured site URL:", configuredSiteUrl);
 function normalizeBaseUrl(value: string): string {
     return value.trim().replace(/\/+$/, "");
 }

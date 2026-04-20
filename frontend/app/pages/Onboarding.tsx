@@ -6,41 +6,35 @@ import { Sparkles } from "lucide-react";
 import AppShell from "@components/AppShell";
 import Loading from "@components/Loading";
 import { supabase } from "@lib/supabase";
-import {useApi} from "@hooks/useApi";
 import { sessionStoreActions, useSessionStore } from "@lib/sessionStore";
-
-type SignupDefaults = {
-    firstname: string;
-    lastname: string;
-    nickname: string;
-};
 
 type OnboardingStep = 1 | 2;
 
-type OnboardingForm = {
+type FormState = {
+    firstname: string;
+    lastname: string;
+    nickname: string;
+    studentId: string;
+    gender: string;
     age: string;
-    sleepHours: string;
-    exerciseFrequency: string;
     mentalHealthRating: string;
+    exerciseFrequency: string;
+    sleepHours: string;
 };
 
-const EMPTY_SIGNUP_DEFAULTS: SignupDefaults = {
+const EMPTY_FORM: FormState = {
     firstname: "",
     lastname: "",
     nickname: "",
-};
-
-const EMPTY_ONBOARDING_FORM: OnboardingForm = {
+    studentId: "",
+    gender: "",
     age: "",
-    sleepHours: "",
-    exerciseFrequency: "",
     mentalHealthRating: "",
+    exerciseFrequency: "",
+    sleepHours: "",
 };
 
-function buildSignupDefaults(sessionUser: {
-    user_metadata?: Record<string, unknown>;
-    email?: string | null;
-}) {
+function buildSignupDefaults(sessionUser: { user_metadata?: Record<string, unknown>; email?: string | null }) {
     const seededName =
         (sessionUser.user_metadata?.nickname as string | undefined) ||
         (sessionUser.user_metadata?.name as string | undefined) ||
@@ -53,7 +47,7 @@ function buildSignupDefaults(sessionUser: {
         firstname: nameParts[0] ?? "",
         lastname: nameParts.slice(1).join(" "),
         nickname: seededName.trim(),
-    } satisfies SignupDefaults;
+    };
 }
 
 function buildDisplayName(firstname: string, lastname: string, nickname: string) {
@@ -63,14 +57,8 @@ function buildDisplayName(firstname: string, lastname: string, nickname: string)
 export default function OnboardingPage() {
     const storedAuthId = useSessionStore((snapshot) => snapshot.authId);
     const [authId, setAuthId] = useState<string | null>(storedAuthId);
-    const [defaultSignupProfile, setDefaultSignupProfile] = useState<SignupDefaults>(EMPTY_SIGNUP_DEFAULTS);
+    const [form, setForm] = useState<FormState>(EMPTY_FORM);
     const [step, setStep] = useState<OnboardingStep>(1);
-    const [firstname, setFirstname] = useState("");
-    const [lastname, setLastname] = useState("");
-    const [nickname, setNickname] = useState("");
-    const [studentId, setStudentId] = useState("");
-    const [gender, setGender] = useState("");
-    const [onboardingForm, setOnboardingForm] = useState<OnboardingForm>(EMPTY_ONBOARDING_FORM);
     const [isCheckingProfile, setIsCheckingProfile] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -90,8 +78,10 @@ export default function OnboardingPage() {
             const nextAuthId = session?.user?.id ?? null;
             setAuthId(nextAuthId);
             sessionStoreActions.setAuthId(nextAuthId);
+
             if (session?.user) {
-                setDefaultSignupProfile(buildSignupDefaults(session.user));
+                const defaults = buildSignupDefaults(session.user);
+                setForm((current) => ({ ...current, ...defaults }));
             }
         });
 
@@ -107,6 +97,7 @@ export default function OnboardingPage() {
         }
 
         let isCancelled = false;
+
         fetch(`/api/student-profile?auth_id=${encodeURIComponent(authId)}`, {
             cache: "no-store",
         })
@@ -142,18 +133,6 @@ export default function OnboardingPage() {
         };
     }, [authId]);
 
-    useEffect(() => {
-        if (!firstname && defaultSignupProfile.firstname) {
-            setFirstname(defaultSignupProfile.firstname);
-        }
-        if (!lastname && defaultSignupProfile.lastname) {
-            setLastname(defaultSignupProfile.lastname);
-        }
-        if (!nickname && defaultSignupProfile.nickname) {
-            setNickname(defaultSignupProfile.nickname);
-        }
-    }, [defaultSignupProfile.firstname, defaultSignupProfile.lastname, defaultSignupProfile.nickname, firstname, lastname, nickname]);
-
     const toNumberOrNull = (value: string) => {
         const trimmed = value.trim();
         if (!trimmed) {
@@ -164,6 +143,27 @@ export default function OnboardingPage() {
         return Number.isFinite(numeric) ? numeric : null;
     };
 
+    const isStep1Valid =
+        [form.firstname, form.lastname, form.nickname, form.studentId, form.gender].every((value) => value.trim()) &&
+        toNumberOrNull(form.age) != null;
+    const isStep2Valid = [form.mentalHealthRating, form.exerciseFrequency, form.sleepHours].every(
+        (value) => toNumberOrNull(value) != null
+    );
+
+    const handleChange = (field: keyof FormState) => (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        setForm((current) => ({ ...current, [field]: event.target.value }));
+    };
+
+    const handleContinue = () => {
+        if (!isStep1Valid) {
+            setErrorMessage("Complete your profile basics before continuing.");
+            return;
+        }
+
+        setErrorMessage(null);
+        setStep(2);
+    };
+
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
@@ -172,22 +172,12 @@ export default function OnboardingPage() {
             return;
         }
 
-        const nextFirstname = firstname.trim();
-        const nextLastname = lastname.trim();
-        const nextNickname = nickname.trim();
-        const nextStudentId = studentId.trim();
-        const nextGender = gender.trim();
-        const age = toNumberOrNull(onboardingForm.age);
-        const mentalHealthRating = toNumberOrNull(onboardingForm.mentalHealthRating);
-        const exerciseFrequency = toNumberOrNull(onboardingForm.exerciseFrequency);
-        const sleepHours = toNumberOrNull(onboardingForm.sleepHours);
-
-        if (!nextFirstname || !nextLastname || !nextNickname || !nextStudentId || !nextGender || age == null) {
+        if (!isStep1Valid) {
             setErrorMessage("Complete your profile basics before continuing.");
             return;
         }
 
-        if (mentalHealthRating == null || exerciseFrequency == null || sleepHours == null) {
+        if (!isStep2Valid) {
             setErrorMessage("Complete your student habits before continuing.");
             return;
         }
@@ -203,17 +193,17 @@ export default function OnboardingPage() {
                 },
                 body: JSON.stringify({
                     auth_id: authId,
-                    firstname: nextFirstname,
-                    lastname: nextLastname,
-                    nickname: nextNickname,
-                    student_id: nextStudentId,
-                    gender: nextGender,
-                    age,
-                    name: buildDisplayName(nextFirstname, nextLastname, nextNickname),
+                    firstname: form.firstname.trim(),
+                    lastname: form.lastname.trim(),
+                    nickname: form.nickname.trim(),
+                    student_id: form.studentId.trim(),
+                    gender: form.gender.trim(),
+                    age: toNumberOrNull(form.age),
+                    name: buildDisplayName(form.firstname, form.lastname, form.nickname),
                     onboarding: {
-                        mental_health_rating: mentalHealthRating,
-                        exercise_frequency: exerciseFrequency,
-                        sleep_hours: sleepHours,
+                        mental_health_rating: toNumberOrNull(form.mentalHealthRating),
+                        exercise_frequency: toNumberOrNull(form.exerciseFrequency),
+                        sleep_hours: toNumberOrNull(form.sleepHours),
                     },
                 }),
             });
@@ -249,10 +239,10 @@ export default function OnboardingPage() {
             <AppShell>
                 <section className="min-h-[70vh] flex flex-col items-center justify-center gap-4 text-center">
                     <h1 className="text-3xl font-bold text-white">Onboarding</h1>
-                    <p className="text-gray-300 text-sm max-w-xs">Sign in to finish creating your student profile.</p>
+                    <p className="text-sm max-w-xs text-gray-300">Sign in to finish creating your student profile.</p>
                     <Link
                         href="/"
-                        className="bg-cyan-500 text-[#091f1c] font-bold py-3 px-6 rounded-xl hover:bg-cyan-400 transition-colors"
+                        className="rounded-xl bg-cyan-500 px-6 py-3 font-bold text-[#091f1c] transition-colors hover:bg-cyan-400"
                     >
                         Back to sign in
                     </Link>
@@ -289,19 +279,18 @@ export default function OnboardingPage() {
                                     <span className="text-xs font-semibold text-gray-300">First name</span>
                                     <input
                                         type="text"
-                                        value={firstname}
-                                        onChange={(event) => setFirstname(event.target.value)}
+                                        value={form.firstname}
+                                        onChange={handleChange("firstname")}
                                         placeholder="Ada"
                                         className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
                                     />
                                 </label>
-
                                 <label className="flex flex-col gap-2">
                                     <span className="text-xs font-semibold text-gray-300">Last name</span>
                                     <input
                                         type="text"
-                                        value={lastname}
-                                        onChange={(event) => setLastname(event.target.value)}
+                                        value={form.lastname}
+                                        onChange={handleChange("lastname")}
                                         placeholder="Lovelace"
                                         className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
                                     />
@@ -313,19 +302,18 @@ export default function OnboardingPage() {
                                     <span className="text-xs font-semibold text-gray-300">Nickname</span>
                                     <input
                                         type="text"
-                                        value={nickname}
-                                        onChange={(event) => setNickname(event.target.value)}
+                                        value={form.nickname}
+                                        onChange={handleChange("nickname")}
                                         placeholder="Ada"
                                         className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
                                     />
                                 </label>
-
                                 <label className="flex flex-col gap-2">
                                     <span className="text-xs font-semibold text-gray-300">Student ID</span>
                                     <input
                                         type="text"
-                                        value={studentId}
-                                        onChange={(event) => setStudentId(event.target.value)}
+                                        value={form.studentId}
+                                        onChange={handleChange("studentId")}
                                         placeholder="S1234567"
                                         className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
                                     />
@@ -336,8 +324,8 @@ export default function OnboardingPage() {
                                 <label className="flex flex-col gap-2">
                                     <span className="text-xs font-semibold text-gray-300">Gender</span>
                                     <select
-                                        value={gender}
-                                        onChange={(event) => setGender(event.target.value)}
+                                        value={form.gender}
+                                        onChange={handleChange("gender")}
                                         className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
                                     >
                                         <option value="">Select gender</option>
@@ -347,16 +335,13 @@ export default function OnboardingPage() {
                                         <option value="prefer_not_to_say">Prefer not to say</option>
                                     </select>
                                 </label>
-
                                 <label className="flex flex-col gap-2">
                                     <span className="text-xs font-semibold text-gray-300">Age</span>
                                     <input
                                         type="number"
                                         min="0"
-                                        value={onboardingForm.age}
-                                        onChange={(event) =>
-                                            setOnboardingForm((current) => ({ ...current, age: event.target.value }))
-                                        }
+                                        value={form.age}
+                                        onChange={handleChange("age")}
                                         placeholder="20"
                                         className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
                                     />
@@ -372,54 +357,36 @@ export default function OnboardingPage() {
                                         type="number"
                                         min="1"
                                         max="10"
-                                        value={onboardingForm.mentalHealthRating}
-                                        onChange={(event) =>
-                                            setOnboardingForm((current) => ({
-                                                ...current,
-                                                mentalHealthRating: event.target.value,
-                                            }))
-                                        }
+                                        value={form.mentalHealthRating}
+                                        onChange={handleChange("mentalHealthRating")}
                                         placeholder="8"
                                         className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
                                     />
                                 </label>
-
                                 <label className="flex flex-col gap-2">
                                     <span className="text-xs font-semibold text-gray-300">Exercise frequency</span>
                                     <input
                                         type="number"
                                         min="0"
-                                        value={onboardingForm.exerciseFrequency}
-                                        onChange={(event) =>
-                                            setOnboardingForm((current) => ({
-                                                ...current,
-                                                exerciseFrequency: event.target.value,
-                                            }))
-                                        }
+                                        value={form.exerciseFrequency}
+                                        onChange={handleChange("exerciseFrequency")}
                                         placeholder="3"
                                         className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
                                     />
                                 </label>
-
                                 <label className="flex flex-col gap-2">
                                     <span className="text-xs font-semibold text-gray-300">Sleep hours</span>
                                     <input
                                         type="number"
                                         min="0"
                                         step="0.5"
-                                        value={onboardingForm.sleepHours}
-                                        onChange={(event) =>
-                                            setOnboardingForm((current) => ({
-                                                ...current,
-                                                sleepHours: event.target.value,
-                                            }))
-                                        }
+                                        value={form.sleepHours}
+                                        onChange={handleChange("sleepHours")}
                                         placeholder="7.5"
                                         className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
                                     />
                                 </label>
                             </div>
-
                             <div className="rounded-2xl border border-dashed border-[#204843] bg-[#0a1816] p-4 text-sm text-gray-300">
                                 These habits are saved with your student profile now and reused when you create a course.
                             </div>
@@ -431,7 +398,7 @@ export default function OnboardingPage() {
                     <div className="flex items-center justify-between gap-3">
                         <button
                             type="button"
-                            onClick={() => setStep((current) => (current === 2 ? 1 : 1))}
+                            onClick={() => setStep(1)}
                             disabled={step === 1}
                             className="rounded-xl border border-[#1b3f3a] px-4 py-2 text-sm font-semibold text-gray-300 transition-colors hover:border-cyan-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
                         >
@@ -441,15 +408,16 @@ export default function OnboardingPage() {
                         {step === 1 ? (
                             <button
                                 type="button"
-                                onClick={() => setStep(2)}
-                                className="rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-bold text-[#091f1c] transition-colors hover:bg-cyan-400"
+                                onClick={handleContinue}
+                                disabled={!isStep1Valid}
+                                className="rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-bold text-[#091f1c] transition-colors hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 Continue
                             </button>
                         ) : (
                             <button
                                 type="submit"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || !isStep2Valid}
                                 className="rounded-xl bg-cyan-500 px-5 py-2.5 text-sm font-bold text-[#091f1c] transition-colors hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {isSubmitting ? "Creating profile..." : "Finish onboarding"}
@@ -460,7 +428,7 @@ export default function OnboardingPage() {
             </section>
 
             <div className="mt-5 flex items-center justify-between gap-3 text-sm text-gray-400">
-                <Link href="/" className="hover:text-white transition-colors">
+                <Link href="/" className="transition-colors hover:text-white">
                     Back to sign in
                 </Link>
                 <span>Course details are added after onboarding.</span>

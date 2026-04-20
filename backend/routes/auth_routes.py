@@ -121,12 +121,25 @@ def get_student_profile_by_auth_id(auth_id):
 def update_student_profile_by_auth_id(auth_id):
     payload = request.get_json(silent=True) or {}
 
-    firstname = _clean_text(payload.get("firstname"))
-    lastname = _clean_text(payload.get("lastname"))
-    nickname = _clean_text(payload.get("nickname"))
+    update_data = {}
+    if "firstname" in payload:
+        firstname = _clean_text(payload.get("firstname"))
+        if not firstname:
+            return {"error": "firstname cannot be empty"}, 400
+        update_data["firstname"] = firstname
+    if "lastname" in payload:
+        lastname = _clean_text(payload.get("lastname"))
+        if not lastname:
+            return {"error": "lastname cannot be empty"}, 400
+        update_data["lastname"] = lastname
+    if "nickname" in payload:
+        nickname = _clean_text(payload.get("nickname"))
+        if not nickname:
+            return {"error": "nickname cannot be empty"}, 400
+        update_data["nickname"] = nickname
 
-    if not firstname or not lastname or not nickname:
-        return {"error": "firstname, lastname, and nickname are required"}, 400
+    if not update_data:
+        return {"error": "No valid fields provided to update"}, 400
 
     existing = db.table("students").select("*").eq("auth_id", auth_id).execute()
     if not existing.data:
@@ -134,13 +147,7 @@ def update_student_profile_by_auth_id(auth_id):
 
     updated = (
         db.table("students")
-        .update(
-            {
-                "firstname": firstname,
-                "lastname": lastname,
-                "nickname": nickname,
-            }
-        )
+        .update(update_data)
         .eq("auth_id", auth_id)
         .execute()
     )
