@@ -25,7 +25,22 @@ def upload_source(student_id, course_code):
     # Store in Pinecone
     upsert_chunks(chunks, course_code, student_id, file.filename)
 
+    course = db.table("courses").select("sources").eq("code", course_code).eq("student_id", student_id).execute()
+    sources = course.data[0].get("sources", [])
+    sources.append(file.filename)
+    db.table("courses").update({"sources": sources}).eq("code", course_code).eq("student_id", student_id).execute()
+
     return {
         "message": "Source uploaded successfully",
         "chunks_stored": len(chunks)
+    }
+
+@source_bp.route("/<student_id>/<course_code>/retrieve_source", methods=["GET"])
+def retrieve_source(student_id, course_code):
+    course = db.table("courses").select("sources").eq("code", course_code).eq("student_id", student_id).execute()
+    sources = course.data[0].get("sources", [])
+
+    return {
+        "course_code" : course_code
+        "sources" : sources
     }
