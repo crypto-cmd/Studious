@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useApi } from '@hooks/useApi';
+import { useCallback, useEffect, useState } from 'react';
+import { useApi as apiRequest } from '@hooks/useApi';
 
 export type CoursePrediction = {
     grade: number;
@@ -8,6 +8,7 @@ export type CoursePrediction = {
 
 export type Course = {
     code: string;
+    title: string | null;
     grade: string;
     trend: 'up' | 'down' | 'stable';
     examDate: string;
@@ -20,6 +21,7 @@ export type Course = {
 
 type CourseRow = {
     code?: string;
+    title?: string | null;
     grade?: string | number | null;
     current_predicted_grade?: string | number | null;
     final_predicted_grade?: string | number | null;
@@ -35,6 +37,18 @@ type UseCoursesResult = {
     courses: Course[];
     isLoading: boolean;
     error: string | null;
+    isMutating: boolean;
+    mutationError: string | null;
+    refresh: () => Promise<void>;
+    addCourse: (payload: CourseMutationPayload) => Promise<void>;
+    updateCourse: (courseCode: string, payload: Partial<CourseMutationPayload>) => Promise<void>;
+    deleteCourse: (courseCode: string) => Promise<void>;
+};
+
+export type CourseMutationPayload = {
+    code: string;
+    title?: string | null;
+    finalExamDate?: string;
 };
 
 function formatExamDate(value: string | number | null | undefined) {
@@ -146,6 +160,10 @@ function normalizeCourses(payload: unknown): Course[] {
             ? courseRow.code.trim()
             : `Course ${index + 1}`;
 
+        const title = typeof courseRow.title === 'string' && courseRow.title.trim()
+            ? courseRow.title.trim()
+            : null;
+
         const rawGrade = courseRow.current_predicted_grade ?? courseRow.final_predicted_grade ?? courseRow.grade;
         const numericGrade = rawGrade == null ? null : Number(rawGrade);
         const grade = numericGrade == null || Number.isNaN(numericGrade)
@@ -177,6 +195,7 @@ function normalizeCourses(payload: unknown): Course[] {
 
         return {
             code,
+            title,
             grade,
             trend,
             examDate: formatExamDate(examDateSource),
@@ -197,8 +216,10 @@ export function useCourses(studentId: string | number | null): UseCoursesResult 
     const [courses, setCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isMutating, setIsMutating] = useState(false);
+    const [mutationError, setMutationError] = useState<string | null>(null);
 
-    useEffect(() => {
+    const loadCourses = useCallback(async () => {
         if (studentId == null) {
             setCourses([]);
             setError(null);
@@ -206,47 +227,149 @@ export function useCourses(studentId: string | number | null): UseCoursesResult 
             return;
         }
 
-        let isCancelled = false;
-
         setIsLoading(true);
         setError(null);
 
-        useApi(
-            'courses',
-            'GET',
-            { student_id: String(studentId) },
-            {},
-            { cache: 'no-store' },
-            'Unable to load courses'
-        )
-            .then((payload) => {
-                return normalizeCourses(payload);
-            })
-            .then((nextCourses) => {
-                if (!isCancelled) {
-                    setCourses(nextCourses);
-                }
-            })
-            .catch((error: unknown) => {
-                if (!isCancelled) {
-                    setCourses([]);
-                    setError(error instanceof Error ? error.message : 'Unable to load courses');
-                }
-            })
-            .finally(() => {
-                if (!isCancelled) {
-                    setIsLoading(false);
-                }
-            });
+        try {
+            const payload = await apiRequest(
+                'courses',
+                'GET',
+                { student_id: String(studentId) },
+                {},
+                { cache: 'no-store' },
+                'Unable to load courses'
+            );
+            setCourses(normalizeCourses(payload));
+        } catch (nextError: unknown) {
+            setCourses([]);
+            setError(nextError instanceof Error ? nextError.message : 'Unable to load courses');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [studentId]);
+
+    const refresh = useCallback(async () => {
+        await loadCourses();
+    }, [loadCourses]);
+
+    const addCourse = useCallback(async (payload: CourseMutationPayload) => {
+        if (studentId == null) {
+            throw new Error('Missing student ID');
+        }
+
+        setIsMutating(true);
+        setMutationError(null);
+
+        try {
+            await apiRequest(
+                'courses',
+                'POST',
+                { student_id: String(studentId) },
+                {
+                    code: payload.code,
+                    title: payload.title ?? null,
+                    final_exam_date: payload.finalExamDate ?? null,
+                },
+                { cache: 'no-store' },
+                'Unable to add course'
+            );
+            await loadCourses();
+        } catch (nextError: unknown) {
+            const message = nextError instanceof Error ? nextError.message : 'Unable to add course';
+            setMutationError(message);
+            throw new Error(message);
+        } finally {
+            setIsMutating(false);
+        }
+    }, [loadCourses, studentId]);
+
+    const updateCourse = useCallback(async (courseCode: string, payload: Partial<CourseMutationPayload>) => {
+        if (studentId == null) {
+            throw new Error('Missing student ID');
+        }
+
+        setIsMutating(true);
+        setMutationError(null);
+
+        try {
+            await apiRequest(
+                'courses',
+                'PATCH',
+                {
+                    student_id: String(studentId),
+                    course_code: courseCode,
+                },
+                {
+                    ...(payload.code !== undefined ? { code: payload.code } : {}),
+                    ...(payload.title !== undefined ? { title: payload.title } : {}),
+                    ...(payload.finalExamDate !== undefined ? { final_exam_date: payload.finalExamDate || null } : {}),
+                },
+                { cache: 'no-store' },
+                'Unable to update course'
+            );
+            await loadCourses();
+        } catch (nextError: unknown) {
+            const message = nextError instanceof Error ? nextError.message : 'Unable to update course';
+            setMutationError(message);
+            throw new Error(message);
+        } finally {
+            setIsMutating(false);
+        }
+    }, [loadCourses, studentId]);
+
+    const deleteCourse = useCallback(async (courseCode: string) => {
+        if (studentId == null) {
+            throw new Error('Missing student ID');
+        }
+
+        setIsMutating(true);
+        setMutationError(null);
+
+        try {
+            await apiRequest(
+                'courses',
+                'DELETE',
+                {
+                    student_id: String(studentId),
+                    course_code: courseCode,
+                },
+                {},
+                { cache: 'no-store' },
+                'Unable to delete course'
+            );
+            await loadCourses();
+        } catch (nextError: unknown) {
+            const message = nextError instanceof Error ? nextError.message : 'Unable to delete course';
+            setMutationError(message);
+            throw new Error(message);
+        } finally {
+            setIsMutating(false);
+        }
+    }, [loadCourses, studentId]);
+
+    useEffect(() => {
+        let isCancelled = false;
+
+        loadCourses().catch(() => {
+            if (isCancelled) {
+                return;
+            }
+        });
 
         return () => {
             isCancelled = true;
         };
-    }, [studentId]);
+    }, [loadCourses]);
 
     return {
         courses,
         isLoading,
         error,
+        isMutating,
+        mutationError,
+        refresh,
+        addCourse,
+        updateCourse,
+        deleteCourse,
     };
 }

@@ -144,6 +144,7 @@ export default function App() {
   const [hasCopiedDiagnostics, setHasCopiedDiagnostics] = useState<boolean>(false);
   const [isCreatingProfile, setIsCreatingProfile] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<TabId>("home");
+  const [selectedCourseCode, setSelectedCourseCode] = useState<string>("");
 
   const resetSignupForm = () => {
     setSignupFirstname("");
@@ -159,6 +160,20 @@ export default function App() {
     const userAgent = window.navigator.userAgent || "";
     const inAppBrowserPattern = /FBAN|FBAV|Instagram|Line|; wv\)|WebView/i;
     setIsProbablyInAppBrowser(inAppBrowserPattern.test(userAgent));
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tabFromUrl = params.get("tab");
+    const courseFromUrl = params.get("course");
+
+    if (tabFromUrl === "analytics" || tabFromUrl === "home" || tabFromUrl === "tasks" || tabFromUrl === "timer" || tabFromUrl === "calendar") {
+      setActiveTab(tabFromUrl as TabId);
+    }
+
+    if (courseFromUrl) {
+      setSelectedCourseCode(decodeURIComponent(courseFromUrl));
+    }
   }, []);
 
   useEffect(() => {
@@ -362,6 +377,10 @@ export default function App() {
         );
         setStudentName(resolvedName || null);
         sessionStoreActions.setStudentId(payload?.student_id ?? null);
+        if (authIntent === "signup") {
+          setAuthIntent("signin");
+          window.sessionStorage.setItem("auth_intent", "signin");
+        }
         finishLoading();
       })
       .catch(async (error: unknown) => {
@@ -400,10 +419,10 @@ export default function App() {
   }, [authIntent, defaultSignupProfile.firstname, defaultSignupProfile.lastname, defaultSignupProfile.nickname, signupFirstname, signupLastname, signupNickname]);
 
   useEffect(() => {
-    if (authId && authIntent === "signup") {
+    if (authId && authIntent === "signup" && lastProfileStatus === 404) {
       window.location.replace("/onboarding");
     }
-  }, [authId, authIntent]);
+  }, [authId, authIntent, lastProfileStatus]);
 
   const signInWithGoogle = async (intent: Exclude<AuthIntent, null>) => {
     setAuthError(null);
@@ -549,7 +568,7 @@ export default function App() {
         );
       case "analytics":
         return (
-          <Analytics />
+          <Analytics selectedCourseCode={selectedCourseCode} />
         );
       case "calendar":
         return (

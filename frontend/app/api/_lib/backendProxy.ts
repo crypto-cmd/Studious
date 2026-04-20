@@ -60,7 +60,31 @@ export async function fetchBackendPayload(
     path: string,
     options: BackendRequestOptions = {}
 ): Promise<BackendPayloadResult> {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}${path}`, buildRequestInit(options));
+    const backendBaseUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+    if (!backendBaseUrl) {
+        return {
+            response: new Response(null, { status: 500, statusText: 'Missing backend URL configuration' }),
+            payload: {
+                error: 'Backend URL is not configured. Set NEXT_PUBLIC_BACKEND_URL and restart the frontend server.',
+            },
+        };
+    }
+
+    let response: Response;
+
+    try {
+        response = await fetch(`${backendBaseUrl}${path}`, buildRequestInit(options));
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Network error while contacting backend';
+
+        return {
+            response: new Response(null, { status: 503, statusText: 'Backend unavailable' }),
+            payload: {
+                error: `Backend is unavailable (${message}). Ensure the backend server is running and NEXT_PUBLIC_BACKEND_URL is correct.`,
+            },
+        };
+    }
+
     const payload = await parseBackendPayload(response);
 
     return { response, payload };

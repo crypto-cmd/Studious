@@ -63,6 +63,10 @@ export default function OnboardingPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+    const handleBackToSignIn = () => {
+        window.sessionStorage.setItem("auth_intent", "signin");
+    };
+
     useEffect(() => {
         let isCancelled = false;
 
@@ -242,6 +246,7 @@ export default function OnboardingPage() {
                     <p className="text-sm max-w-xs text-gray-300">Sign in to finish creating your student profile.</p>
                     <Link
                         href="/"
+                        onClick={handleBackToSignIn}
                         className="rounded-xl bg-cyan-500 px-6 py-3 font-bold text-[#091f1c] transition-colors hover:bg-cyan-400"
                     >
                         Back to sign in
@@ -428,7 +433,7 @@ export default function OnboardingPage() {
             </section>
 
             <div className="mt-5 flex items-center justify-between gap-3 text-sm text-gray-400">
-                <Link href="/" className="transition-colors hover:text-white">
+                <Link href="/" onClick={handleBackToSignIn} className="transition-colors hover:text-white">
                     Back to sign in
                 </Link>
                 <span>Course details are added after onboarding.</span>

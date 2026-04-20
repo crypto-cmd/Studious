@@ -1,11 +1,29 @@
+"use client";
+
+import { useMemo, useState } from 'react';
 import { Brain } from 'lucide-react';
 import XpBanner from '@components/XpBanner';
 import { useSessionStore } from '@lib/sessionStore';
 import { useTaskSummary } from '@hooks/useTaskSummary';
-import { useCourses } from '@hooks/useCourses';
+import { useCourses, type Course } from '@hooks/useCourses';
 import CourseCard from '@components/CourseCard';
+import CourseFormModal from '@components/CourseFormModal';
 import WeekStrip from '@components/WeekStrip';
 import SectionHeader from '@components/SectionHeader';
+
+type CourseFormMode = 'add' | 'edit';
+
+type CourseFormState = {
+  code: string;
+  title: string;
+  finalExamDate: string;
+};
+
+const EMPTY_FORM: CourseFormState = {
+  code: '',
+  title: '',
+  finalExamDate: '',
+};
 
 type HomeDashboardProps = {
   studentName: string | null;
@@ -14,10 +32,116 @@ type HomeDashboardProps = {
 export default function HomeDashboard({ studentName }: HomeDashboardProps) {
   const studentId = useSessionStore((snapshot) => snapshot.studentId);
   const { completedCount, totalCount, totalXp, level } = useTaskSummary(studentId);
-  const { courses, error: coursesError } = useCourses(studentId);
+  const {
+    courses,
+    error: coursesError,
+    isMutating,
+    mutationError,
+    addCourse,
+    updateCourse,
+    deleteCourse,
+  } = useCourses(studentId);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formMode, setFormMode] = useState<CourseFormMode>('add');
+  const [editingCourseCode, setEditingCourseCode] = useState<string | null>(null);
+  const [formState, setFormState] = useState<CourseFormState>(EMPTY_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [pendingDeleteCode, setPendingDeleteCode] = useState<string | null>(null);
 
   const displayName = studentName?.trim() || 'Student';
   const displayId = studentId == null ? 'Unknown' : String(studentId).trim() || 'Unknown';
+
+  const combinedError = useMemo(() => {
+    return mutationError ?? formError;
+  }, [mutationError, formError]);
+
+  const openAddCourseForm = () => {
+    setFormMode('add');
+    setEditingCourseCode(null);
+    setFormState(EMPTY_FORM);
+    setFormError(null);
+    setIsFormOpen(true);
+  };
+
+  const openEditCourseForm = (course: Course) => {
+    setFormMode('edit');
+    setEditingCourseCode(course.code);
+    setFormState({
+      code: course.code,
+      title: course.title ?? '',
+      finalExamDate: course.finalExamDate ?? '',
+    });
+    setFormError(null);
+    setIsFormOpen(true);
+  };
+
+  const closeForm = () => {
+    if (isMutating) {
+      return;
+    }
+
+    setIsFormOpen(false);
+    setEditingCourseCode(null);
+    setFormState(EMPTY_FORM);
+    setFormError(null);
+  };
+
+  const handleSubmitCourse = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setFormError(null);
+
+    const courseCode = formState.code.trim().toUpperCase();
+    if (!courseCode) {
+      setFormError('Course code is required.');
+      return;
+    }
+
+    try {
+      if (formMode === 'add') {
+        await addCourse({
+          code: courseCode,
+          title: formState.title.trim() || null,
+          finalExamDate: formState.finalExamDate || undefined,
+        });
+      } else {
+        if (!editingCourseCode) {
+          setFormError('No course selected to update.');
+          return;
+        }
+
+        await updateCourse(editingCourseCode, {
+          code: courseCode,
+          title: formState.title.trim() || null,
+          finalExamDate: formState.finalExamDate,
+        });
+      }
+
+      closeForm();
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Unable to save course.');
+    }
+  };
+
+  const handleDeleteCourse = async (course: Course) => {
+    const shouldDelete = window.confirm(`Delete ${course.code}? This action cannot be undone.`);
+    if (!shouldDelete) {
+      return;
+    }
+
+    setPendingDeleteCode(course.code);
+    setFormError(null);
+
+    try {
+      await deleteCourse(course.code);
+      if (editingCourseCode === course.code) {
+        closeForm();
+      }
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Unable to delete course.');
+    } finally {
+      setPendingDeleteCode(null);
+    }
+  };
 
   return (
     <>
@@ -35,14 +159,48 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
       <WeekStrip />
 
       <section>
-        <SectionHeader title="Courses" />
+        <SectionHeader
+          title="Courses"
+          action={(
+            <button
+              type="button"
+              onClick={openAddCourseForm}
+              disabled={isMutating}
+              className="text-sm font-semibold text-cyan-300 border border-cyan-500/60 rounded-lg px-3 py-1.5 hover:bg-cyan-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Add course
+            </button>
+          )}
+        />
+
+        <CourseFormModal
+          isOpen={isFormOpen}
+          mode={formMode}
+          course={editingCourseCode ? courses.find((c) => c.code === editingCourseCode) : undefined}
+          formState={formState}
+          onFormChange={(field, value) => setFormState((current) => ({ ...current, [field]: value }))}
+          onSubmit={handleSubmitCourse}
+          onClose={closeForm}
+          error={combinedError}
+          isLoading={isMutating}
+        />
+
         {coursesError && <p className="text-sm text-red-300 px-2 mb-3">{coursesError}</p>}
+
         <div className="flex flex-col gap-4">
           {!coursesError && courses.length === 0 && (
             <p className="text-sm text-gray-400 px-2">No course records found yet.</p>
           )}
 
-          {courses.map((course) => <CourseCard key={course.code} course={course} />)}
+          {courses.map((course) => (
+            <CourseCard
+              key={course.code}
+              course={course}
+              onEdit={openEditCourseForm}
+              onDelete={handleDeleteCourse}
+              isBusy={isMutating && pendingDeleteCode === course.code}
+            />
+          ))}
         </div>
       </section>
     </>
