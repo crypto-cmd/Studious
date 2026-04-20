@@ -19,7 +19,6 @@ def upload_source(student_id, course_code):
 
     # Extract + chunk
     text = extract_text(file_stream)
-    print(text)
     chunks = chunk_text(text)
 
     # Store in Pinecone
