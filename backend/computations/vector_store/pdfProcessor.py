@@ -1,7 +1,7 @@
-from pypdf import PdfReader
+from PyPDF2 import PdfReader
 
-def extract_text(file_path):
-    reader = PdfReader(file_path)
+def extract_text(file_stream):
+    reader = PdfReader(file_stream)
     text = ""
 
     for page in reader.pages:
@@ -10,7 +10,7 @@ def extract_text(file_path):
     return text
 
 
-def chunk_text(text, chunk_size=300):
+def chunk_text(text, chunk_size=100):
     words = text.split()
     return [
         " ".join(words[i:i+chunk_size])

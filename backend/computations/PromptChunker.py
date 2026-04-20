@@ -15,7 +15,7 @@ class PromptChunker:
         self.instructions = instructions
         self.task= []
 
-    def get_tasks_from_ai(self, instruction, context=""):
+    def get_tasks_from_ai(self, instruction, context):
         client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
         full_prompt = f"""

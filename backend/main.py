@@ -8,7 +8,7 @@ from routes.course_grade_routes import course_grade_bp
 from routes.improvement_routes import improvement_bp
 from routes.student_routes import student_bp
 from routes.focus_session_routes import focus_session_bp
-
+from routes.upload_routes import source_bp
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -19,7 +19,7 @@ app.register_blueprint(course_grade_bp, url_prefix="/api/course-grades")
 app.register_blueprint(improvement_bp, url_prefix="/api/improvement")
 app.register_blueprint(student_bp, url_prefix="/api/students")
 app.register_blueprint(focus_session_bp, url_prefix="/api/focus-sessions")
-
+app.register_blueprint(source_bp, url_prefix="/api/upload")
 
 # Optional: Run the app if this file is executed directly
 if __name__ == "__main__":

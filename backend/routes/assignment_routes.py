@@ -11,9 +11,9 @@ def create_assignment(student_id, course_code):
     instructions = request.get_json().get('instructions')
     due_date = request.get_json().get('due_date')
 
-    matches = query_chunks(instructions, course_code)
+    matches = query_chunks(instructions, student_id, course_code)
 
-    context = "\n".join([m["chunk_text"] for m in matches])
+    context = "\n".join([m["fields"]["text"] for m in matches])
 
     from computations.PromptChunker import PromptChunker
 
@@ -34,6 +34,7 @@ def create_assignment(student_id, course_code):
     }).execute()
 
     return {
+        "context": context,
         "title": assignment_title,
         "tasks": tasks,
         "task_count": task_count,

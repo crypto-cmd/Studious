@@ -1,8 +1,10 @@
 from pinecone import Pinecone
 from dotenv import load_dotenv
 
+import os
+
 pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-INDEX_NAME = s.getenv("PINECONE_INDEX_NAME")
+INDEX_NAME = os.getenv("PINECONE_INDEX_NAME")
 index = pc.Index(INDEX_NAME)
 
 
@@ -12,21 +14,21 @@ def upsert_chunks(chunks, class_id, user_id, file_name):
     for i, chunk in enumerate(chunks):
         records.append({
             "_id": f"{file_name}_{i}",
-            "chunk_text": chunk,
+            "text": chunk,
             "class_id": class_id,
             "user_id": user_id
         })
 
-    index.upsert_records(class_id, records)  # namespace = class_id
+    index.upsert_records(f"{user_id}--{class_id}", records)  # namespace = class_id
 
 
-def query_chunks(query, class_id):
+def query_chunks(query, user_id, class_id):
     results = index.search(
-        namespace=class_id,
+        namespace=f"{user_id}--{class_id}",
         query={
             "inputs": {"text": query},
-            "top_k": 5
+            "top_k": 2
         }
     )
 
-    return results["matches"]
+    return results["result"]["hits"]
