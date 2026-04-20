@@ -1,5 +1,5 @@
-import OnboardingPage from "@pages/Onboarding";
+import Onboarding from "@/app/onboarding/Onboarding";
 
 export default function OnboardingRoutePage() {
-    return <OnboardingPage />;
+    return <Onboarding />;
 }

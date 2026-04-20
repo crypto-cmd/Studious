@@ -1,4 +1,4 @@
-import ProfilePage from "@pages/Profile";
+import ProfilePage from "@/app/profile/Profile";
 
 export default function ProfileRoutePage() {
     return <ProfilePage />;
