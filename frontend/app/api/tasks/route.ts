@@ -83,3 +83,48 @@ export async function PATCH(request: Request) {
         }
     );
 }
+
+export async function PUT(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const studentId = searchParams.get("student_id");
+    const courseCode = searchParams.get("course_code");
+    const assignmentId = searchParams.get("assignment_id");
+
+    if (!studentId || !courseCode || !assignmentId) {
+        return Response.json(
+            { error: "Missing student_id, course_code, or assignment_id" },
+            { status: 400 }
+        );
+    }
+
+    const payload = await request.json();
+
+    return proxyBackend(
+        `/api/assignments/${studentId}/${courseCode}/${assignmentId}`,
+        {
+            method: 'PUT',
+            body: payload,
+        }
+    );
+}
+
+export async function DELETE(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const studentId = searchParams.get("student_id");
+    const courseCode = searchParams.get("course_code");
+    const assignmentId = searchParams.get("assignment_id");
+
+    if (!studentId || !courseCode || !assignmentId) {
+        return Response.json(
+            { error: "Missing student_id, course_code, or assignment_id" },
+            { status: 400 }
+        );
+    }
+
+    return proxyBackend(
+        `/api/assignments/${studentId}/${courseCode}/${assignmentId}`,
+        {
+            method: 'DELETE',
+        }
+    );
+}

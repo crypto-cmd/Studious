@@ -137,7 +137,7 @@ def get_assignments(student_id, course_code):
     return {"assignments": assignments}, 200
 
 
-@assignment_bp.route("/<student_id>/<course_code>/<assignment_id>", methods=["GET"])
+@assignment_bp.route("/<student_id>/<course_code>/<assignment_id>", methods=["GET", "PUT", "DELETE"])
 def get_tasks(student_id, course_code, assignment_id):
     assignment_result = db.table("assignments").select("*").eq("id", assignment_id).execute()
     assignment = assignment_result.data[0] if assignment_result.data else None
@@ -152,8 +152,38 @@ def get_tasks(student_id, course_code, assignment_id):
     course_row = course[0]
     if str(course_row.get("student_id")) != student_id or course_row.get("code") != course_code:
         return {"error": "Assignment does not belong to the specified student or course"}, 403
+
     tasks = db.table("tasks").select("*").eq("assignment_id", assignment_id).execute().data
 
-    if tasks is None:
-        return {"error": "Error fetching tasks"}, 500
-    return {"tasks": tasks}, 200
+    if request.method == "GET":
+        if tasks is None:
+            return {"error": "Error fetching tasks"}, 500
+        return {"tasks": tasks}, 200
+
+    if request.method == "PUT":
+        payload = request.get_json(silent=True) or {}
+        title = payload.get("title")
+        instructions = payload.get("instructions")
+        due_date = payload.get("due_date")
+
+        updates = {}
+
+        if title is not None:
+            updates["title"] = title
+
+        if instructions is not None:
+            if not str(instructions).strip():
+                return {"error": "Instructions cannot be empty"}, 400
+            updates["instructions"] = instructions
+
+        if due_date is not None:
+            updates["due_date"] = due_date
+
+        if not updates:
+            return {"error": "No valid fields provided for update"}, 400
+
+        db.table("assignments").update(updates).eq("id", assignment_id).execute()
+        return {"message": "Assignment updated"}
+
+    db.table("assignments").delete().eq("id", assignment_id).execute()
+    return {"message": "Assignment deleted"}

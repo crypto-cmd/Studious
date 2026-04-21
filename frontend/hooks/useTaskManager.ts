@@ -1,22 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useApi } from '@hooks/useApi';
-
-export type MicroTask = {
-    id: string;
-    description: string;
-    xp: number;
-    completed: boolean;
-};
-
-export type Assignment = {
-    id: string;
-    title?: string;
-    instructions?: string;
-    tasks: MicroTask[];
-};
+import {
+    normalizeAssignments,
+    type Assignment,
+    type AssignmentTask as MicroTask,
+} from '@lib/assignments';
 
 type UseTaskManagerOptions = {
     onTaskCompleted?: (delta: number) => void;
+    initialCourseCode?: string;
+    initialAssignmentId?: string;
 };
 
 type UseTaskManagerResult = {
@@ -35,48 +28,17 @@ type UseTaskManagerResult = {
     isLoadingCourses: boolean;
     isLoadingAssignments: boolean;
     isCreatingAssignment: boolean;
+    isUpdatingAssignment: boolean;
+    deletingAssignmentId: string | null;
     completingTaskKeys: string[];
     errorMessage: string | null;
     selectedAssignment: Assignment | null;
     visibleTasks: MicroTask[];
     handleCreateAssignment: () => Promise<void>;
+    handleUpdateAssignment: (assignmentId: string, nextTitle: string, nextDueDate: string) => Promise<boolean>;
+    handleDeleteAssignment: (assignmentId: string) => Promise<void>;
     handleCompleteTask: (assignmentId: string, taskId: string, alreadyCompleted: boolean) => Promise<void>;
 };
-
-function normalizeAssignments(payload: unknown): Assignment[] {
-    const asRecord = payload as Record<string, unknown>;
-    const assignmentsRaw = asRecord?.assignments;
-
-    if (!Array.isArray(assignmentsRaw)) {
-        return [];
-    }
-
-    return assignmentsRaw.map((assignmentRaw, index) => {
-        const assignmentRecord = assignmentRaw as Record<string, unknown>;
-        const tasksRaw = assignmentRecord.tasks;
-
-        const tasks = Array.isArray(tasksRaw)
-            ? tasksRaw.map((taskRaw, taskIndex) => {
-                const taskRecord = taskRaw as Record<string, unknown>;
-                return {
-                    id: typeof taskRecord.id === 'string'
-                        ? taskRecord.id
-                        : `${String(assignmentRecord.id ?? index)}-${taskIndex}`,
-                    description: typeof taskRecord.task === 'string' ? taskRecord.task : 'Untitled task',
-                    xp: Number.isFinite(Number(taskRecord.xp)) ? Number(taskRecord.xp) : 0,
-                    completed: Boolean(taskRecord.completed),
-                };
-            })
-            : [];
-
-        return {
-            id: String(assignmentRecord.id ?? index),
-            title: typeof assignmentRecord.title === 'string' ? assignmentRecord.title : '',
-            instructions: typeof assignmentRecord.instructions === 'string' ? assignmentRecord.instructions : '',
-            tasks,
-        };
-    });
-}
 
 function normalizeCourseCodes(payload: unknown): string[] {
     const asRecord = payload as Record<string, unknown>;
@@ -123,14 +85,24 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
     const [isLoadingCourses, setIsLoadingCourses] = useState(false);
     const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
     const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
+    const [isUpdatingAssignment, setIsUpdatingAssignment] = useState(false);
+    const [deletingAssignmentId, setDeletingAssignmentId] = useState<string | null>(null);
     const [completingTaskKeys, setCompletingTaskKeys] = useState<string[]>([]);
     const [reloadAssignmentsKey, setReloadAssignmentsKey] = useState(0);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const onTaskCompleted = options?.onTaskCompleted ?? (() => { });
+    const initialCourseCode = options?.initialCourseCode?.trim() ?? '';
+    const initialAssignmentId = options?.initialAssignmentId?.trim() ?? '';
 
     const selectedAssignment = assignments.find((currentAssignment) => currentAssignment.id === selectedAssignmentId) ?? null;
     const visibleTasks = selectedAssignment?.tasks ?? [];
+
+    const resetComposerState = () => {
+        setAssignmentTitle('');
+        setAssignment('');
+        setDueDate('');
+    };
 
     const markTaskCompletedLocally = (assignmentId: string, taskId: string) => {
         setAssignments((prev) => prev.map((currentAssignment) => {
@@ -219,14 +191,92 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
                 'Unable to create assignment'
             );
 
-            setAssignmentTitle('');
-            setAssignment('');
-            setDueDate('');
+            resetComposerState();
             setReloadAssignmentsKey((prev) => prev + 1);
         } catch (error: unknown) {
             setErrorMessage(error instanceof Error ? error.message : 'Unable to create assignment');
         } finally {
             setIsCreatingAssignment(false);
+        }
+    };
+
+    const handleUpdateAssignment = async (assignmentId: string, nextTitle: string, nextDueDate: string) => {
+        if (studentId == null || !selectedCourse) {
+            setErrorMessage('Select a course before editing an assignment.');
+            return false;
+        }
+
+        const title = nextTitle.trim();
+        if (!title) {
+            setErrorMessage('Enter an assignment title first.');
+            return false;
+        }
+
+        setIsUpdatingAssignment(true);
+        setErrorMessage(null);
+
+        try {
+            await useApi(
+                'tasks',
+                'PUT',
+                {
+                    student_id: String(studentId),
+                    course_code: selectedCourse,
+                    assignment_id: assignmentId,
+                },
+                {
+                    title,
+                    due_date: nextDueDate || null,
+                },
+                {},
+                'Unable to update assignment'
+            );
+
+            setReloadAssignmentsKey((prev) => prev + 1);
+            return true;
+        } catch (error: unknown) {
+            setErrorMessage(error instanceof Error ? error.message : 'Unable to update assignment');
+            return false;
+        } finally {
+            setIsUpdatingAssignment(false);
+        }
+    };
+
+    const handleDeleteAssignment = async (assignmentId: string) => {
+        if (studentId == null || !selectedCourse) {
+            setErrorMessage('Select a course before deleting an assignment.');
+            return;
+        }
+
+        const assignmentToDelete = assignments.find((currentAssignment) => currentAssignment.id === assignmentId);
+        const assignmentLabel = assignmentToDelete?.title?.trim() || `Assignment ${assignmentId}`;
+        const shouldDelete = window.confirm(`Delete ${assignmentLabel}? This action cannot be undone.`);
+        if (!shouldDelete) {
+            return;
+        }
+
+        setDeletingAssignmentId(assignmentId);
+        setErrorMessage(null);
+
+        try {
+            await useApi(
+                'tasks',
+                'DELETE',
+                {
+                    student_id: String(studentId),
+                    course_code: selectedCourse,
+                    assignment_id: assignmentId,
+                },
+                {},
+                {},
+                'Unable to delete assignment'
+            );
+
+            setReloadAssignmentsKey((prev) => prev + 1);
+        } catch (error: unknown) {
+            setErrorMessage(error instanceof Error ? error.message : 'Unable to delete assignment');
+        } finally {
+            setDeletingAssignmentId(null);
         }
     };
 
@@ -254,14 +304,18 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
             'Unable to load courses'
         )
             .then((data) => {
-
                 const nextCourses = normalizeCourseCodes(data);
 
                 setCourses(nextCourses);
                 setSelectedCourse((currentCourse) => {
+                    if (initialCourseCode && nextCourses.includes(initialCourseCode)) {
+                        return initialCourseCode;
+                    }
+
                     if (currentCourse && nextCourses.includes(currentCourse)) {
                         return currentCourse;
                     }
+
                     return nextCourses[0] ?? '';
                 });
             })
@@ -273,7 +327,7 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
             .finally(() => {
                 setIsLoadingCourses(false);
             });
-    }, [studentId]);
+    }, [initialCourseCode, studentId]);
 
     useEffect(() => {
         if (studentId == null || !selectedCourse) {
@@ -295,14 +349,18 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
             'Unable to load assignments'
         )
             .then((data) => {
-
                 const normalizedAssignments = normalizeAssignments(data);
 
                 setAssignments(normalizedAssignments);
                 setSelectedAssignmentId((currentId) => {
-                    if (currentId && normalizedAssignments.some((a) => a.id === currentId)) {
+                    if (initialAssignmentId && normalizedAssignments.some((assignmentItem) => assignmentItem.id === initialAssignmentId)) {
+                        return initialAssignmentId;
+                    }
+
+                    if (currentId && normalizedAssignments.some((assignmentItem) => assignmentItem.id === currentId)) {
                         return currentId;
                     }
+
                     return normalizedAssignments[0]?.id ?? '';
                 });
             })
@@ -314,7 +372,7 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
             .finally(() => {
                 setIsLoadingAssignments(false);
             });
-    }, [reloadAssignmentsKey, selectedCourse, studentId]);
+    }, [initialAssignmentId, reloadAssignmentsKey, selectedCourse, studentId]);
 
     return {
         courses,
@@ -332,11 +390,15 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         isLoadingCourses,
         isLoadingAssignments,
         isCreatingAssignment,
+        isUpdatingAssignment,
+        deletingAssignmentId,
         completingTaskKeys,
         errorMessage,
         selectedAssignment,
         visibleTasks,
         handleCreateAssignment,
+        handleUpdateAssignment,
+        handleDeleteAssignment,
         handleCompleteTask,
     };
 }

@@ -1,4 +1,5 @@
 "use client";
+import { useMemo, useState } from 'react';
 import { ListTodo } from 'lucide-react';
 import XpBanner from '@components/XpBanner';
 import { useSessionStore } from '@lib/sessionStore';
@@ -6,12 +7,21 @@ import { useTaskSummary } from '@hooks/useTaskSummary';
 import { useTaskManager } from '@hooks/useTaskManager';
 import TaskCourseSelect from '@components/TaskCourseSelect';
 import TaskAssignmentComposer from '@components/TaskAssignmentComposer';
+import TaskAssignmentEditModal from '@components/TaskAssignmentEditModal';
 import TaskAssignmentList from '@components/TaskAssignmentList';
 import TaskItem from '@components/TaskItem';
 import SectionHeader from '@components/SectionHeader';
 
-export default function TaskManager() {
+type TaskManagerProps = {
+    initialCourseCode?: string;
+    initialAssignmentId?: string;
+};
+
+export default function TaskManager({ initialCourseCode, initialAssignmentId }: TaskManagerProps) {
     const studentId = useSessionStore((snapshot) => snapshot.studentId);
+    const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null);
+    const [editingAssignmentTitle, setEditingAssignmentTitle] = useState('');
+    const [editingAssignmentDueDate, setEditingAssignmentDueDate] = useState('');
     const { completedCount, totalCount, totalXp, level, incrementCompleted } = useTaskSummary(studentId);
     const {
         courses,
@@ -29,13 +39,58 @@ export default function TaskManager() {
         isLoadingCourses,
         isLoadingAssignments,
         isCreatingAssignment,
+        isUpdatingAssignment,
+        deletingAssignmentId,
         completingTaskKeys,
         errorMessage,
         selectedAssignment,
         visibleTasks,
         handleCreateAssignment,
+        handleUpdateAssignment,
+        handleDeleteAssignment,
         handleCompleteTask,
-    } = useTaskManager(studentId, { onTaskCompleted: incrementCompleted });
+    } = useTaskManager(studentId, {
+        onTaskCompleted: incrementCompleted,
+        initialCourseCode,
+        initialAssignmentId,
+    });
+
+    const editingAssignment = useMemo(
+        () => assignments.find((assignmentItem) => assignmentItem.id === editingAssignmentId) ?? null,
+        [assignments, editingAssignmentId]
+    );
+
+    const openAssignmentEditModal = (assignmentId: string) => {
+        const assignmentToEdit = assignments.find((assignmentItem) => assignmentItem.id === assignmentId);
+        if (!assignmentToEdit) {
+            return;
+        }
+
+        setEditingAssignmentId(assignmentId);
+        setEditingAssignmentTitle(assignmentToEdit.title?.trim() ?? '');
+        setEditingAssignmentDueDate(assignmentToEdit.dueDate ?? '');
+    };
+
+    const closeAssignmentEditModal = () => {
+        if (isUpdatingAssignment) {
+            return;
+        }
+
+        setEditingAssignmentId(null);
+        setEditingAssignmentTitle('');
+        setEditingAssignmentDueDate('');
+    };
+
+    const submitAssignmentEdit = async () => {
+        if (!editingAssignmentId) {
+            return;
+        }
+
+        const updated = await handleUpdateAssignment(editingAssignmentId, editingAssignmentTitle, editingAssignmentDueDate);
+        if (updated) {
+            closeAssignmentEditModal();
+        }
+    };
 
     return (
         <>
@@ -68,10 +123,25 @@ export default function TaskManager() {
                 canSubmit={Boolean(selectedCourse && assignmentTitle.trim() && assignment.trim())}
             />
 
+            <TaskAssignmentEditModal
+                isOpen={Boolean(editingAssignment)}
+                assignmentTitle={editingAssignmentTitle}
+                dueDate={editingAssignmentDueDate}
+                isSaving={isUpdatingAssignment}
+                error={errorMessage}
+                onAssignmentTitleChange={setEditingAssignmentTitle}
+                onDueDateChange={setEditingAssignmentDueDate}
+                onClose={closeAssignmentEditModal}
+                onSubmit={() => void submitAssignmentEdit()}
+            />
+
             <TaskAssignmentList
                 assignments={assignments}
                 selectedAssignmentId={selectedAssignmentId}
                 onSelectAssignment={setSelectedAssignmentId}
+                onEditAssignment={openAssignmentEditModal}
+                onDeleteAssignment={(assignmentId) => void handleDeleteAssignment(assignmentId)}
+                deletingAssignmentId={deletingAssignmentId}
                 isLoadingAssignments={isLoadingAssignments}
                 selectedCourse={selectedCourse}
             />
