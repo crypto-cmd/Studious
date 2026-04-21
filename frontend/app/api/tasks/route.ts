@@ -53,7 +53,19 @@ export async function GET(request: Request) {
                 ? (tasksPayload as { tasks?: unknown }).tasks
                 : [];
 
-        return { ...assignmentRecord, tasks };
+        const resolvedCourseCode =
+            typeof assignmentRecord.course_code === 'string' && assignmentRecord.course_code.trim().length > 0
+                ? assignmentRecord.course_code
+                : typeof assignmentRecord.courseCode === 'string' && assignmentRecord.courseCode.trim().length > 0
+                    ? assignmentRecord.courseCode
+                    : courseCode;
+
+        return {
+            ...assignmentRecord,
+            course_code: resolvedCourseCode,
+            courseCode: resolvedCourseCode,
+            tasks,
+        };
     });
 
     const assignmentsWithTasks = await Promise.all(tasksPromises);
