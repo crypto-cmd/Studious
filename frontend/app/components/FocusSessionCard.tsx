@@ -49,8 +49,8 @@ function getSessionDurationSeconds(session: FocusSession) {
         }
     }
 
-    const startSeconds = parseTimeToSeconds(session.startTime);
-    const endSeconds = parseTimeToSeconds(session.endTime);
+    const startSeconds = parseTimeToSeconds(session.sessionStart);
+    const endSeconds = parseTimeToSeconds(session.sessionEnd);
 
     if (startSeconds == null || endSeconds == null) {
         return 0;
@@ -80,7 +80,7 @@ export default function FocusSessionCard({ session }: FocusSessionCardProps) {
             <div>
                 <span className="font-bold text-cyan-400">{formatDuration(getSessionDurationSeconds(session))}</span>
                 <p className="text-xs text-gray-400 mt-1">
-                    {session.dayOfWeek || formatSessionDate(sessionDate)} · {session.startTime || session.sessionStart || 'Start unavailable'} - {session.endTime || session.sessionEnd || 'End unavailable'}
+                    {formatSessionDate(sessionDate)} · {session.sessionStart || 'Start unavailable'} - {session.sessionEnd || 'End unavailable'}
                 </p>
             </div>
         </div>
