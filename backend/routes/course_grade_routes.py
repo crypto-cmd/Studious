@@ -11,8 +11,8 @@ _GRADE_INPUT_FIELDS = [
     "age",
     "gender",
     "attendance_percentage",
-    "sleep_hours",
-    "exercise_frequency",
+    "sleep_hours_per_night",
+    "exercise_hours_per_week",
     "mental_health_rating",
     "study_hours_per_day",
 ]
@@ -52,7 +52,13 @@ def predict_and_save_course_grade(student_id, course_code):
     except RuntimeError as exc:
         return {"error": str(exc)}, 500
 
-    existing = db.table("courses").select("predicted_grades").eq("code", course_code).execute()
+    existing = (
+        db.table("courses")
+        .select("predicted_grades")
+        .eq("student_id", student_id)
+        .eq("code", course_code)
+        .execute()
+    )
     if not existing.data:
         return {"error": "Course not found"}, 404
 
@@ -60,8 +66,8 @@ def predict_and_save_course_grade(student_id, course_code):
     predicted_grades = course_row.get("predicted_grades", [])
     predicted_grades.append({"grade": predicted_grade, "month": datetime.datetime.now().month})
 
-    db.table("courses").update({"predicted_grades": predicted_grades}).eq("code", course_code).execute()
-    db.table("courses").update({"current_predicted_grade": predicted_grade}).eq("code", course_code).execute()
+    db.table("courses").update({"predicted_grades": predicted_grades}).eq("student_id", student_id).eq("code", course_code).execute()
+    db.table("courses").update({"current_predicted_grade": predicted_grade}).eq("student_id", student_id).eq("code", course_code).execute()
 
     return {
         "student_id": student_id,
@@ -75,16 +81,29 @@ def predict_and_save_course_grade(student_id, course_code):
 def _get_student_grade_input(student_id, course_code):
     prelim_data = db.table("students").select("age, gender").eq("id", student_id).execute()
 
-    special_data = (
-        db.table("course_specific_student_data")
-        .select("attendance_percentage, sleep_hours, exercise_frequency, mental_health_rating, study_hours_per_day")
+    course_data = (
+        db.table("courses")
+        .select("attendance_percentage")
         .eq("student_id", student_id)
-        .eq("course_code", course_code)
+        .eq("code", course_code)
         .execute()
     )
 
-    if not prelim_data.data or not special_data.data:
+    special_data = (
+        db.table("student_study_data")
+        .select("sleep_hours_per_night, exercise_hours_per_week, mental_health_rating, study_hours_per_day, calculated_study_hours_per_day, use_calculated_study_hours")
+        .eq("student_id", student_id)
+        .execute()
+    )
+
+    if not prelim_data.data or not course_data.data or not special_data.data:
         return None
 
-    student_row = {**prelim_data.data[0], **special_data.data[0]}
+    student_row = {**prelim_data.data[0], **course_data.data[0], **special_data.data[0]}
+    effective_study_hours = student_row.get("study_hours_per_day")
+    if student_row.get("use_calculated_study_hours") and student_row.get("calculated_study_hours_per_day") is not None:
+        effective_study_hours = student_row.get("calculated_study_hours_per_day")
+
+    student_row["study_hours_per_day"] = effective_study_hours
+
     return {field: student_row.get(field) for field in _GRADE_INPUT_FIELDS}

@@ -2,12 +2,26 @@ import { useEffect, useMemo, useState } from 'react';
 import { useApi } from '@hooks/useApi';
 
 type ImprovementApiResponse = {
+    current_profile?: {
+        attendance_percentage?: number | string | null;
+        sleep_hours_per_night?: number | string | null;
+        exercise_hours_per_week?: number | string | null;
+        mental_health_rating?: number | string | null;
+        study_hours_per_day?: number | string | null;
+    };
+    suggested_profile?: {
+        attendance_percentage?: number | string | null;
+        sleep_hours_per_night?: number | string | null;
+        exercise_hours_per_week?: number | string | null;
+        mental_health_rating?: number | string | null;
+        study_hours_per_day?: number | string | null;
+    };
     current_grade?: number | string | null;
     predicted_improved_grade?: number | string | null;
     improvements?: {
         attendance_percentage?: number | string | null;
-        sleep_hours?: number | string | null;
-        exercise_frequency?: number | string | null;
+        sleep_hours_per_night?: number | string | null;
+        exercise_hours_per_week?: number | string | null;
         mental_health_rating?: number | string | null;
         study_hours_per_day?: number | string | null;
         grade_improvement?: number | string | null;
@@ -15,7 +29,7 @@ type ImprovementApiResponse = {
 };
 
 export type ImprovementMetric = {
-    key: 'attendance_percentage' | 'sleep_hours' | 'exercise_frequency' | 'mental_health_rating' | 'study_hours_per_day';
+    key: 'attendance_percentage' | 'sleep_hours_per_night' | 'exercise_hours_per_week' | 'mental_health_rating' | 'study_hours_per_day';
     label: string;
     delta: number;
 };
@@ -27,17 +41,17 @@ export type CourseImprovement = {
     metrics: ImprovementMetric[];
 };
 
-const METRIC_LABELS: Record<ImprovementMetric['key'], string> = {
-    attendance_percentage: 'Attendance',
-    sleep_hours: 'Sleep',
-    exercise_frequency: 'Exercise',
-    mental_health_rating: 'Mental health',
-    study_hours_per_day: 'Study time',
-};
-
 function toFiniteNumber(value: unknown): number | null {
     const numberValue = Number(value);
     return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+function buildMetric(key: ImprovementMetric['key'], label: string, value: unknown): ImprovementMetric {
+    return {
+        key,
+        label,
+        delta: toFiniteNumber(value) ?? 0,
+    };
 }
 
 function normalizeImprovement(payload: unknown): CourseImprovement | null {
@@ -47,14 +61,13 @@ function normalizeImprovement(payload: unknown): CourseImprovement | null {
 
     const response = payload as ImprovementApiResponse;
     const improvements = response.improvements ?? {};
-
-    const metrics = (Object.keys(METRIC_LABELS) as Array<ImprovementMetric['key']>)
-        .map((key) => ({
-            key,
-            label: METRIC_LABELS[key],
-            delta: toFiniteNumber(improvements[key]) ?? 0,
-        }))
-        .sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta));
+    const metrics: ImprovementMetric[] = [
+        buildMetric('attendance_percentage', 'Attendance', improvements.attendance_percentage),
+        buildMetric('sleep_hours_per_night', 'Sleep', improvements.sleep_hours_per_night),
+        buildMetric('exercise_hours_per_week', 'Exercise', improvements.exercise_hours_per_week),
+        buildMetric('mental_health_rating', 'Mental health', improvements.mental_health_rating),
+        buildMetric('study_hours_per_day', 'Study time', improvements.study_hours_per_day),
+    ].sort((left, right) => Math.abs(right.delta) - Math.abs(left.delta));
 
     return {
         currentGrade: toFiniteNumber(response.current_grade),

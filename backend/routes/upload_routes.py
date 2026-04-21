@@ -1,7 +1,5 @@
-from flask import Flask, request, Blueprint
-import uuid
-import shutil
 import io
+from flask import Blueprint, request
 from data.db import db
 
 from computations.vector_store.pdfProcessor import extract_text, chunk_text
@@ -25,10 +23,15 @@ def upload_source(student_id, course_code):
     # Store in Pinecone
     upsert_chunks(chunks, course_code, student_id, file.filename)
 
-    course = db.table("courses").select("sources").eq("code", course_code).eq("student_id", student_id).execute()
-    sources = course.data[0].get("sources", [])
-    sources.append(file.filename)
-    db.table("courses").update({"sources": sources}).eq("code", course_code).eq("student_id", student_id).execute()
+    course = db.table("courses").select("id").eq("code", course_code).eq("student_id", student_id).execute()
+    if not course.data:
+        return {"error": "Course not found"}, 404
+
+    db.table("course_materials").insert({
+        "student_id": student_id,
+        "course_id": course.data[0].get("id"),
+        "filename": file.filename,
+    }).execute()
 
     return {
         "message": "Source uploaded successfully",
@@ -37,8 +40,18 @@ def upload_source(student_id, course_code):
 
 @source_bp.route("/<student_id>/<course_code>/retrieve_source", methods=["GET"])
 def retrieve_source(student_id, course_code):
-    course = db.table("courses").select("sources").eq("code", course_code).eq("student_id", student_id).execute()
-    sources = course.data[0].get("sources", [])
+    course = db.table("courses").select("id").eq("code", course_code).eq("student_id", student_id).execute()
+    if not course.data:
+        return {"error": "Course not found"}, 404
+
+    material_rows = (
+        db.table("course_materials")
+        .select("filename, uploaded_at")
+        .eq("student_id", student_id)
+        .eq("course_id", course.data[0].get("id"))
+        .execute()
+    )
+    sources = [row.get("filename") for row in (material_rows.data or []) if row.get("filename")]
 
     return {
         "course_code" : course_code,

@@ -122,6 +122,7 @@ export default function CourseFormModal({
                             onChange={(e) => onFormChange('title', e.target.value)}
                             placeholder="Linear Algebra"
                             className="rounded-lg border border-[#1b3f3a] bg-[#091f1c] px-3 py-2 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none"
+                            required
                             disabled={isLoading}
                         />
                     </label>
@@ -133,6 +134,7 @@ export default function CourseFormModal({
                             value={formState.finalExamDate}
                             onChange={(e) => onFormChange('finalExamDate', e.target.value)}
                             className="rounded-lg border border-[#1b3f3a] bg-[#091f1c] px-3 py-2 text-white focus:border-cyan-400 focus:outline-none"
+                            required
                             disabled={isLoading}
                         />
                     </label>

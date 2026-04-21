@@ -24,17 +24,15 @@ def _to_number_or_none(value):
 
 
 def _student_response(student_row):
-    firstname = _clean_text(student_row.get("firstname"))
-    lastname = _clean_text(student_row.get("lastname"))
+    name = _clean_text(student_row.get("name"))
     nickname = _clean_text(student_row.get("nickname"))
 
     return {
         "auth_id": student_row.get("auth_id"),
-        "firstname": firstname,
-        "lastname": lastname,
+        "name": name,
         "nickname": nickname,
         "gender": _normalize_gender(student_row.get("gender")),
-        "id": student_row.get("student_id"),
+        "id": student_row.get("id"),
     }
 
 
@@ -53,21 +51,24 @@ def update_student_profile(student_id):
     payload = request.get_json(silent=True) or {}
 
     update_data = {}
-    if "firstname" in payload:
-        firstname = _clean_text(payload.get("firstname"))
-        if not firstname:
-            return {"error": "firstname cannot be empty"}, 400
-        update_data["firstname"] = firstname
-    if "lastname" in payload:
-        lastname = _clean_text(payload.get("lastname"))
-        if not lastname:
-            return {"error": "lastname cannot be empty"}, 400
-        update_data["lastname"] = lastname
     if "nickname" in payload:
         nickname = _clean_text(payload.get("nickname"))
-        if not nickname:
-            return {"error": "nickname cannot be empty"}, 400
-        update_data["nickname"] = nickname
+        update_data["nickname"] = nickname or None
+    if "gender" in payload:
+        gender = _normalize_gender(payload.get("gender"))
+        update_data["gender"] = gender
+    if "age" in payload:
+        age_value = _to_number_or_none(payload.get("age"))
+        if age_value is None:
+            return {"error": "age must be a number"}, 400
+        age_value = int(age_value)
+        update_data["age"] = age_value
+    if "name" in payload:
+        name = _clean_text(payload.get("name"))
+        if not name:
+            return {"error": "name cannot be empty"}, 400
+        update_data["name"] = name
+
 
     if not update_data:
         return {"error": "No valid fields provided to update"}, 400
@@ -91,8 +92,35 @@ def update_student_profile(student_id):
 
 @student_bp.route("/<student_id>/courses", methods=["GET"])
 def get_courses(student_id):
-    courses = db.table("courses").select("*").eq("student_id", student_id).execute()
-    return courses.data, 200
+    courses_result = db.table("courses").select("*").eq("student_id", student_id).execute()
+    if not courses_result.data:
+        return [], 200
+
+    course_ids = [course.get("id") for course in courses_result.data if course.get("id")]
+    materials_result = (
+        db.table("course_materials")
+        .select("course_id, filename")
+        .eq("student_id", student_id)
+        .in_("course_id", course_ids)
+        .execute()
+        if course_ids else None
+    )
+
+    materials_by_course = {}
+    for row in (materials_result.data if materials_result and materials_result.data else []):
+        course_id = row.get("course_id")
+        filename = row.get("filename")
+        if not course_id or not filename:
+            continue
+        materials_by_course.setdefault(course_id, []).append(filename)
+
+    courses = []
+    for course in courses_result.data:
+        next_course = dict(course)
+        next_course["sources"] = materials_by_course.get(course.get("id"), [])
+        courses.append(next_course)
+
+    return courses, 200
 
 
 @student_bp.route("/<student_id>/courses", methods=["POST"])
@@ -102,6 +130,14 @@ def add_course(student_id):
     code = _clean_text(payload.get("code")).upper()
     if not code:
         return {"error": "code is required"}, 400
+
+    title = _clean_text(payload.get("title"))
+    if not title:
+        return {"error": "title is required"}, 400
+
+    final_exam_date = _clean_text(payload.get("final_exam_date"))
+    if not final_exam_date:
+        return {"error": "final_exam_date is required"}, 400
 
     existing = (
         db.table("courses")
@@ -116,8 +152,8 @@ def add_course(student_id):
     insert_payload = {
         "student_id": student_id,
         "code": code,
-        "title": _clean_text(payload.get("title")) or None,
-        "final_exam_date": _clean_text(payload.get("final_exam_date")) or None,
+        "title": title,
+        "final_exam_date": final_exam_date,
         "current_predicted_grade": _to_number_or_none(payload.get("current_predicted_grade")),
         "final_predicted_grade": _to_number_or_none(payload.get("final_predicted_grade")),
         "predicted_grades": payload.get("predicted_grades") if isinstance(payload.get("predicted_grades"), list) else [],
@@ -165,10 +201,16 @@ def update_course(student_id, course_code):
         update_data["code"] = next_code
 
     if "title" in payload:
-        update_data["title"] = _clean_text(payload.get("title")) or None
+        title = _clean_text(payload.get("title"))
+        if not title:
+            return {"error": "title cannot be empty"}, 400
+        update_data["title"] = title
 
     if "final_exam_date" in payload:
-        update_data["final_exam_date"] = _clean_text(payload.get("final_exam_date")) or None
+        final_exam_date = _clean_text(payload.get("final_exam_date"))
+        if not final_exam_date:
+            return {"error": "final_exam_date cannot be empty"}, 400
+        update_data["final_exam_date"] = final_exam_date
 
     if "current_predicted_grade" in payload:
         update_data["current_predicted_grade"] = _to_number_or_none(payload.get("current_predicted_grade"))
@@ -223,3 +265,16 @@ def delete_course(student_id, course_code):
         "deleted": True,
         "course": deleted.data[0] if deleted.data else existing.data[0],
     }, 200
+
+@student_bp.route("/find/<student_number>", methods=["GET"])
+def find_student(student_number):
+    students = (
+        db.table("students")
+        .select("*")
+        .eq("student_number", student_number)
+        .execute()
+    )
+    if not students.data:
+        return {"error": "No student found"}, 404
+
+    return students.data, 200

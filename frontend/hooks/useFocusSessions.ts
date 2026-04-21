@@ -3,10 +3,13 @@ import { useApi } from '@hooks/useApi';
 
 export type FocusSession = {
     id: string;
-    dayOfWeek: string;
-    startTime: string;
-    endTime: string;
+    sessionStart: string;
+    sessionEnd: string;
+    thetaStart: number | null;
+    thetaEnd: number | null;
     createdAt: string;
+    focusScore: number | null;
+    qualityScore: number | null;
 };
 
 type UseFocusSessionsResult = {
@@ -16,7 +19,7 @@ type UseFocusSessionsResult = {
     isSaving: boolean;
     error: string | null;
     refresh: () => Promise<void>;
-    saveSession: (durationSeconds: number) => Promise<void>;
+    saveSession: (durationSeconds: number, focusScore: number) => Promise<void>;
 };
 
 function normalizeSessions(payload: unknown): FocusSession[] {
@@ -30,59 +33,51 @@ function normalizeSessions(payload: unknown): FocusSession[] {
     return sessionsRaw.map((sessionRaw, index) => {
         const sessionRecord = sessionRaw as Record<string, unknown>;
         const idValue = sessionRecord.id;
-        const dayOfWeekValue = sessionRecord.day_of_week;
-        const startTimeValue = sessionRecord.start_time;
-        const endTimeValue = sessionRecord.end_time;
+        const sessionStartValue = sessionRecord.session_start;
+        const sessionEndValue = sessionRecord.session_end;
+        const thetaStartValue = sessionRecord.theta_start;
+        const thetaEndValue = sessionRecord.theta_end;
         const createdAtValue = sessionRecord.created_at;
+        const focusScoreValue = sessionRecord.focus_score;
+        const qualityScoreValue = sessionRecord.quality_score;
 
         return {
             id: idValue == null ? `session-${index}` : String(idValue),
-            dayOfWeek: typeof dayOfWeekValue === 'string' ? dayOfWeekValue : '',
-            startTime: typeof startTimeValue === 'string' ? startTimeValue : '',
-            endTime: typeof endTimeValue === 'string' ? endTimeValue : '',
+            sessionStart: typeof sessionStartValue === 'string' ? sessionStartValue : '',
+            sessionEnd: typeof sessionEndValue === 'string' ? sessionEndValue : '',
+            thetaStart: Number.isFinite(Number(thetaStartValue)) ? Number(thetaStartValue) : null,
+            thetaEnd: Number.isFinite(Number(thetaEndValue)) ? Number(thetaEndValue) : null,
             createdAt: typeof createdAtValue === 'string' ? createdAtValue : '',
+            focusScore: Number.isFinite(Number(focusScoreValue)) ? Number(focusScoreValue) : null,
+            qualityScore: Number.isFinite(Number(qualityScoreValue)) ? Number(qualityScoreValue) : null,
         };
     });
 }
 
-function parseTimeToSeconds(value: string) {
-    const [hoursRaw, minutesRaw, secondsRaw] = value.split(':');
-    const hours = Number(hoursRaw);
-    const minutes = Number(minutesRaw);
-    const seconds = Number(secondsRaw);
-
-    if (
-        !Number.isFinite(hours) ||
-        !Number.isFinite(minutes) ||
-        !Number.isFinite(seconds) ||
-        hours < 0 ||
-        minutes < 0 ||
-        seconds < 0
-    ) {
-        return null;
-    }
-
-    return hours * 3600 + minutes * 60 + seconds;
-}
-
 function getSessionDurationSeconds(session: FocusSession) {
-    const startSeconds = parseTimeToSeconds(session.startTime);
-    const endSeconds = parseTimeToSeconds(session.endTime);
+    if (session.sessionStart && session.sessionEnd) {
+        const startDate = new Date(session.sessionStart);
+        const endDate = new Date(session.sessionEnd);
 
-    if (startSeconds == null || endSeconds == null) {
-        return 0;
+        if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && endDate.getTime() >= startDate.getTime()) {
+            return Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / 1000));
+        }
     }
 
-    if (endSeconds >= startSeconds) {
-        return endSeconds - startSeconds;
-    }
-
-    return 24 * 3600 - startSeconds + endSeconds;
+    return 0;
 }
 
 function getTotalFocusHours(sessions: FocusSession[]) {
     const totalSeconds = sessions.reduce((sum, session) => sum + getSessionDurationSeconds(session), 0);
     return Math.round((totalSeconds / 3600) * 10) / 10;
+}
+
+function getThetaFromDate(date: Date) {
+    const secondsPerDay = 24 * 60 * 60;
+    const secondsPerWeek = secondsPerDay * 7;
+    const dayOffset = date.getDay() * secondsPerDay;
+    const timeOffset = date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
+    return (2 * Math.PI * (dayOffset + timeOffset)) / secondsPerWeek;
 }
 
 export function useFocusSessions(studentId: string | number | null): UseFocusSessionsResult {
@@ -98,7 +93,6 @@ export function useFocusSessions(studentId: string | number | null): UseFocusSes
             setIsLoading(false);
             return;
         }
-
         setIsLoading(true);
 
         try {
@@ -124,28 +118,34 @@ export function useFocusSessions(studentId: string | number | null): UseFocusSes
         void refresh();
     }, [studentId]);
 
-    const saveSession = async (durationSeconds: number) => {
+    const saveSession = async (durationSeconds: number, focusScore: number) => {
         if (studentId == null || durationSeconds <= 0) {
             return;
         }
+
+        const normalizedFocusScore = Math.max(1, Math.min(5, Math.round(focusScore)));
 
         setIsSaving(true);
 
         try {
             const endDate = new Date();
             const startDate = new Date(endDate.getTime() - durationSeconds * 1000);
-            const dayOfWeek = startDate.toLocaleDateString('en-US', { weekday: 'long' });
-            const startTime = startDate.toTimeString().slice(0, 8);
-            const endTime = endDate.toTimeString().slice(0, 8);
+            const sessionStart = startDate.toISOString();
+            const sessionEnd = endDate.toISOString();
+            const thetaStart = getThetaFromDate(startDate);
+            const thetaEnd = getThetaFromDate(endDate);
 
             await useApi(
                 'focus-sessions',
                 'POST',
                 { student_id: String(studentId) },
                 {
-                    day_of_week: dayOfWeek,
-                    start_time: startTime,
-                    end_time: endTime,
+                    session_start: sessionStart,
+                    session_end: sessionEnd,
+                    theta_start: thetaStart,
+                    theta_end: thetaEnd,
+                    focus_score: normalizedFocusScore,
+                    quality_score: Number((normalizedFocusScore / 5).toFixed(2)),
                 },
                 {},
                 'Unable to save session'
