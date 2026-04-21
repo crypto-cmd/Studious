@@ -53,13 +53,32 @@ export type CourseMutationPayload = {
     finalExamDate?: string;
 };
 
+function parseCalendarDate(value: string): Date | null {
+    const trimmedValue = value.trim();
+    const dateOnlyMatch = trimmedValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (dateOnlyMatch) {
+        const year = Number(dateOnlyMatch[1]);
+        const month = Number(dateOnlyMatch[2]);
+        const day = Number(dateOnlyMatch[3]);
+        return new Date(year, month - 1, day);
+    }
+
+    const parsedDate = new Date(trimmedValue);
+    if (Number.isNaN(parsedDate.getTime())) {
+        return null;
+    }
+
+    return parsedDate;
+}
+
 function formatExamDate(value: string | number | null | undefined) {
     if (!value) {
         return 'No exam date set';
     }
 
-    const parsedDate = new Date(String(value));
-    if (!Number.isNaN(parsedDate.getTime())) {
+    const parsedDate = typeof value === 'string' ? parseCalendarDate(value) : new Date(String(value));
+    if (parsedDate && !Number.isNaN(parsedDate.getTime())) {
         return parsedDate.toLocaleDateString(undefined, {
             month: 'long',
             day: 'numeric',
@@ -83,8 +102,8 @@ function formatCountdown(value: string | number | null | undefined) {
         return 'Date unavailable';
     }
 
-    const parsedDate = new Date(String(value));
-    if (Number.isNaN(parsedDate.getTime())) {
+    const parsedDate = typeof value === 'string' ? parseCalendarDate(value) : new Date(String(value));
+    if (!parsedDate || Number.isNaN(parsedDate.getTime())) {
         const numericMonth = Number(value);
         if (Number.isFinite(numericMonth) && numericMonth >= 1 && numericMonth <= 12) {
             return `Month ${numericMonth}`;
@@ -93,7 +112,11 @@ function formatCountdown(value: string | number | null | undefined) {
         return String(value);
     }
 
-    const diffDays = Math.ceil((parsedDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const examDay = new Date(parsedDate);
+    examDay.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((examDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
         return 'Past due';

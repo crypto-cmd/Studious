@@ -1,13 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 type Day = {
     dayStr: string;
     date: number;
+    dateKey: string;
     isActive: boolean;
 };
 
 type WeekStripProps = {
+    assignmentCountsByDate: Record<string, number>;
+    examCountsByDate: Record<string, number>;
+    onDaySelect: (dateKey: string) => void;
 };
 
 type WeekView = {
@@ -47,6 +51,7 @@ function buildWeek(startDate: Date, offsetWeeks: number): WeekView {
             return {
                 dayStr: date.toLocaleDateString(undefined, { weekday: 'short' }),
                 date: date.getDate(),
+                dateKey: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`,
                 isActive: date.toDateString() === currentDate.toDateString(),
             };
         }),
@@ -54,11 +59,27 @@ function buildWeek(startDate: Date, offsetWeeks: number): WeekView {
     };
 }
 
-export default function WeekStrip({ }: WeekStripProps) {
+export default function WeekStrip({ assignmentCountsByDate, examCountsByDate, onDaySelect }: WeekStripProps) {
     const [weekOffset, setWeekOffset] = useState(0);
 
     const { days, label } = useMemo(() => buildWeek(new Date(), weekOffset), [weekOffset]);
     const isCurrentWeek = weekOffset === 0;
+
+    useEffect(() => {
+        console.log('[WeekStrip] Render state', {
+            weekOffset,
+            label,
+            assignmentCountsByDate,
+            examCountsByDate,
+            days: days.map((day) => ({
+                dateKey: day.dateKey,
+                date: day.date,
+                assignmentCount: assignmentCountsByDate[day.dateKey] ?? 0,
+                examCount: examCountsByDate[day.dateKey] ?? 0,
+                isActive: day.isActive,
+            })),
+        });
+    }, [assignmentCountsByDate, days, examCountsByDate, label, weekOffset]);
 
     return (
         <section className="bg-[#132e2a] rounded-3xl p-4 mb-6 shadow-lg border border-[#1b3f3a]">
@@ -93,18 +114,48 @@ export default function WeekStrip({ }: WeekStripProps) {
                 </button>
             </div>
 
-            <div className="flex justify-between items-center overflow-x-auto hide-scrollbar gap-2 px-1">
+            <div className="flex justify-between items-center hide-scrollbar gap-2 px-1 overflow-visible">
                 {days.map((day) => (
-                    <div
+                    <button
                         key={`${day.dayStr}-${day.date}`}
-                        className={`flex flex-col items-center justify-center p-2 rounded-xl min-w-[45px] transition-colors ${day.isActive
+                        type="button"
+                        onClick={() => {
+                            const assignmentCount = assignmentCountsByDate[day.dateKey] ?? 0;
+                            const examCount = examCountsByDate[day.dateKey] ?? 0;
+                            const hasEvents = assignmentCount > 0 || examCount > 0;
+                            console.log('[WeekStrip] Day clicked', {
+                                dateKey: day.dateKey,
+                                assignmentCount,
+                                examCount,
+                                hasAssignments: assignmentCount > 0,
+                                hasExams: examCount > 0,
+                                hasEvents,
+                            });
+
+                            if (hasEvents) {
+                                onDaySelect(day.dateKey);
+                            }
+                        }}
+                        className={`relative flex flex-col items-center justify-center p-2 rounded-xl min-w-[45px] transition-all ${day.isActive
                             ? 'bg-cyan-400 text-[#091f1c] font-bold shadow-md'
                             : 'text-gray-400 hover:bg-[#1b3f3a]'
-                            }`}
+                            } ${((assignmentCountsByDate[day.dateKey] ?? 0) > 0 || (examCountsByDate[day.dateKey] ?? 0) > 0) ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default'}`}
                     >
                         <span className="text-xs mb-1">{day.dayStr}</span>
                         <span className="text-lg">{day.date}</span>
-                    </div>
+                        {(assignmentCountsByDate[day.dateKey] ?? 0) > 0 && (
+                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center">
+                                <span className="absolute h-full w-full rounded-full bg-red-400/30 animate-ping" />
+                                <span className="relative h-2.5 w-2.5 rounded-full bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.8)]" />
+                            </span>
+                        )}
+                        {(examCountsByDate[day.dateKey] ?? 0) > 0 && (
+                            <span className="absolute -top-1.5 -left-1.5 flex h-4 w-4 items-center justify-center">
+                                <span className="absolute h-full w-full rounded-full bg-amber-300/30 animate-ping" />
+                                <span className="relative h-2.5 w-2.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(252,211,77,0.8)]" />
+                            </span>
+                        )}
+                    </button>
                 ))}
             </div>
         </section>

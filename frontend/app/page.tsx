@@ -126,24 +126,26 @@ function buildDisplayName(firstname: string, lastname: string, nickname: string)
 function SearchParamSync({
   onTabParam,
   onCourseParam,
+  onAssignmentParam,
 }: {
   onTabParam: (tab: TabId) => void;
   onCourseParam: (courseCode: string) => void;
+  onAssignmentParam: (assignmentId: string) => void;
 }) {
   const searchParams = useSearchParams();
 
   useEffect(() => {
     const tabFromUrl = searchParams.get("tab");
-    const courseFromUrl = searchParams.get("course");
+    const courseFromUrl = searchParams.get("course") ?? "";
+    const assignmentFromUrl = searchParams.get("assignment") ?? "";
 
     if (tabFromUrl === "analytics" || tabFromUrl === "home" || tabFromUrl === "tasks" || tabFromUrl === "timer" || tabFromUrl === "calendar") {
       onTabParam(tabFromUrl as TabId);
     }
 
-    if (courseFromUrl) {
-      onCourseParam(courseFromUrl);
-    }
-  }, [onCourseParam, onTabParam, searchParams]);
+    onCourseParam(courseFromUrl);
+    onAssignmentParam(assignmentFromUrl);
+  }, [onAssignmentParam, onCourseParam, onTabParam, searchParams]);
 
   return null;
 }
@@ -173,6 +175,7 @@ export default function App() {
   const [isCreatingProfile, setIsCreatingProfile] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<TabId>("home");
   const [selectedCourseCode, setSelectedCourseCode] = useState<string>("");
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>("");
 
   const resetSignupForm = () => {
     setSignupFirstname("");
@@ -558,8 +561,11 @@ export default function App() {
 
     const nextParams = new URLSearchParams(window.location.search);
     nextParams.set("tab", tab);
-    if (tab !== "analytics") {
+    if (tab === "analytics") {
+      nextParams.delete("assignment");
+    } else {
       nextParams.delete("course");
+      nextParams.delete("assignment");
     }
 
     const nextUrl = `${pathname}?${nextParams.toString()}`;
@@ -585,7 +591,7 @@ export default function App() {
       case "home":
         return <HomeDashboard studentName={studentName} />;
       case "tasks":
-        return <TaskManager />;
+        return <TaskManager initialCourseCode={selectedCourseCode} initialAssignmentId={selectedAssignmentId} />;
       case "timer":
         return (
           <FocusTimer />
@@ -604,7 +610,7 @@ export default function App() {
       default:
         return <HomeDashboard studentName={studentName} />;
     }
-  }, [activeTab, selectedCourseCode, studentName]);
+  }, [activeTab, selectedAssignmentId, selectedCourseCode, studentName]);
 
   const copyDiagnostics = async () => {
     const diagnostics = {
@@ -987,7 +993,11 @@ export default function App() {
   return (
     <AppShell>
       <Suspense fallback={null}>
-        <SearchParamSync onTabParam={setActiveTab} onCourseParam={setSelectedCourseCode} />
+        <SearchParamSync
+          onTabParam={setActiveTab}
+          onCourseParam={setSelectedCourseCode}
+          onAssignmentParam={setSelectedAssignmentId}
+        />
       </Suspense>
       <div className="mb-4 flex justify-end">
         <ProfileButton studentName={studentName} />
