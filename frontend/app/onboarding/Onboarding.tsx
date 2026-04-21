@@ -11,8 +11,7 @@ import { sessionStoreActions, useSessionStore } from "@lib/sessionStore";
 type OnboardingStep = 1 | 2;
 
 type FormState = {
-    firstname: string;
-    lastname: string;
+    name: string;
     nickname: string;
     studentId: string;
     gender: string;
@@ -20,11 +19,11 @@ type FormState = {
     mentalHealthRating: string;
     exerciseFrequency: string;
     sleepHours: string;
+    studyHoursPerDay: string;
 };
 
 const EMPTY_FORM: FormState = {
-    firstname: "",
-    lastname: "",
+    name: "",
     nickname: "",
     studentId: "",
     gender: "",
@@ -32,6 +31,7 @@ const EMPTY_FORM: FormState = {
     mentalHealthRating: "",
     exerciseFrequency: "",
     sleepHours: "",
+    studyHoursPerDay: "",
 };
 
 function buildSignupDefaults(sessionUser: { user_metadata?: Record<string, unknown>; email?: string | null }) {
@@ -42,16 +42,10 @@ function buildSignupDefaults(sessionUser: { user_metadata?: Record<string, unkno
         sessionUser.email?.split("@")[0] ||
         "";
 
-    const nameParts = seededName.trim().split(/\s+/).filter(Boolean);
     return {
-        firstname: nameParts[0] ?? "",
-        lastname: nameParts.slice(1).join(" "),
+        name: seededName.trim(),
         nickname: seededName.trim(),
     };
-}
-
-function buildDisplayName(firstname: string, lastname: string, nickname: string) {
-    return nickname.trim() || [firstname.trim(), lastname.trim()].filter(Boolean).join(" ");
 }
 
 export default function OnboardingPage() {
@@ -147,10 +141,8 @@ export default function OnboardingPage() {
         return Number.isFinite(numeric) ? numeric : null;
     };
 
-    const isStep1Valid =
-        [form.firstname, form.lastname, form.nickname, form.studentId, form.gender].every((value) => value.trim()) &&
-        toNumberOrNull(form.age) != null;
-    const isStep2Valid = [form.mentalHealthRating, form.exerciseFrequency, form.sleepHours].every(
+    const isStep1Valid = [form.name, form.studentId, form.gender].every((value) => value.trim()) && toNumberOrNull(form.age) != null;
+    const isStep2Valid = [form.mentalHealthRating, form.exerciseFrequency, form.sleepHours, form.studyHoursPerDay].every(
         (value) => toNumberOrNull(value) != null
     );
 
@@ -197,17 +189,16 @@ export default function OnboardingPage() {
                 },
                 body: JSON.stringify({
                     auth_id: authId,
-                    firstname: form.firstname.trim(),
-                    lastname: form.lastname.trim(),
-                    nickname: form.nickname.trim(),
+                    name: form.name.trim(),
+                    nickname: form.nickname.trim() || null,
                     student_id: form.studentId.trim(),
                     gender: form.gender.trim(),
                     age: toNumberOrNull(form.age),
-                    name: buildDisplayName(form.firstname, form.lastname, form.nickname),
                     onboarding: {
                         mental_health_rating: toNumberOrNull(form.mentalHealthRating),
-                        exercise_frequency: toNumberOrNull(form.exerciseFrequency),
-                        sleep_hours: toNumberOrNull(form.sleepHours),
+                        exercise_hours_per_week: toNumberOrNull(form.exerciseFrequency),
+                        sleep_hours_per_night: toNumberOrNull(form.sleepHours),
+                        study_hours_per_day: toNumberOrNull(form.studyHoursPerDay)
                     },
                 }),
             });
@@ -279,28 +270,16 @@ export default function OnboardingPage() {
                 <form onSubmit={handleSubmit} className="flex flex-col gap-5">
                     {step === 1 ? (
                         <>
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                                <label className="flex flex-col gap-2">
-                                    <span className="text-xs font-semibold text-gray-300">First name</span>
-                                    <input
-                                        type="text"
-                                        value={form.firstname}
-                                        onChange={handleChange("firstname")}
-                                        placeholder="Ada"
-                                        className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
-                                    />
-                                </label>
-                                <label className="flex flex-col gap-2">
-                                    <span className="text-xs font-semibold text-gray-300">Last name</span>
-                                    <input
-                                        type="text"
-                                        value={form.lastname}
-                                        onChange={handleChange("lastname")}
-                                        placeholder="Lovelace"
-                                        className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
-                                    />
-                                </label>
-                            </div>
+                            <label className="flex flex-col gap-2">
+                                <span className="text-xs font-semibold text-gray-300">Name</span>
+                                <input
+                                    type="text"
+                                    value={form.name}
+                                    onChange={handleChange("name")}
+                                    placeholder="Ada Lovelace"
+                                    className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
+                                />
+                            </label>
 
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                 <label className="flex flex-col gap-2">
@@ -309,7 +288,7 @@ export default function OnboardingPage() {
                                         type="text"
                                         value={form.nickname}
                                         onChange={handleChange("nickname")}
-                                        placeholder="Ada"
+                                        placeholder="Optional"
                                         className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
                                     />
                                 </label>
@@ -369,7 +348,7 @@ export default function OnboardingPage() {
                                     />
                                 </label>
                                 <label className="flex flex-col gap-2">
-                                    <span className="text-xs font-semibold text-gray-300">Exercise frequency</span>
+                                    <span className="text-xs font-semibold text-gray-300">Exercise hours / week</span>
                                     <input
                                         type="number"
                                         min="0"
@@ -380,7 +359,7 @@ export default function OnboardingPage() {
                                     />
                                 </label>
                                 <label className="flex flex-col gap-2">
-                                    <span className="text-xs font-semibold text-gray-300">Sleep hours</span>
+                                    <span className="text-xs font-semibold text-gray-300">Sleep hours / night</span>
                                     <input
                                         type="number"
                                         min="0"
@@ -392,6 +371,18 @@ export default function OnboardingPage() {
                                     />
                                 </label>
                             </div>
+                            <label className="flex flex-col gap-2">
+                                <span className="text-xs font-semibold text-gray-300">Study hours / day</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.5"
+                                    value={form.studyHoursPerDay}
+                                    onChange={handleChange("studyHoursPerDay")}
+                                    placeholder="3"
+                                    className="w-full rounded-xl border border-[#1b3f3a] bg-[#0a1816] p-3 text-white focus:border-cyan-400 focus:outline-none"
+                                />
+                            </label>
                             <div className="rounded-2xl border border-dashed border-[#204843] bg-[#0a1816] p-4 text-sm text-gray-300">
                                 These habits are saved with your student profile now and reused when you create a course.
                             </div>

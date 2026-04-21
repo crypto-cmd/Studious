@@ -14,8 +14,8 @@ class GradePredictor:
 	FEATURE_ORDER = [
 		"age",
 		"attendance_percentage",
-		"sleep_hours",
-		"exercise_frequency",
+		"sleep_hours_per_night",
+		"exercise_hours_per_week",
 		"mental_health_rating",
 		"study_hours_per_day",
 		"gender_Female",
@@ -51,8 +51,8 @@ class GradePredictor:
 		"age",
 		"gender",
 		"attendance_percentage",
-		"sleep_hours",
-		"exercise_frequency",
+		"sleep_hours_per_night",
+		"exercise_hours_per_week",
 		"mental_health_rating",
 		"study_hours_per_day",
 	}
@@ -91,8 +91,8 @@ class GradePredictor:
 			"age": int(student_data["age"]),
 			"gender": str(student_data["gender"]).strip().lower(),
 			"attendance_percentage": float(student_data["attendance_percentage"]),
-			"sleep_hours": float(student_data["sleep_hours"]),
-			"exercise_frequency": int(student_data["exercise_frequency"]),
+			"sleep_hours_per_night": float(student_data["sleep_hours_per_night"]),
+			"exercise_hours_per_week": int(student_data["exercise_hours_per_week"]),
 			"mental_health_rating": int(student_data["mental_health_rating"]),
 			"study_hours_per_day": float(student_data["study_hours_per_day"]),
 		}
@@ -101,10 +101,10 @@ class GradePredictor:
 			raise ValueError("attendance_percentage must be between 0 and 100")
 		if validated["age"] <= 0:
 			raise ValueError("age must be greater than 0")
-		if validated["sleep_hours"] <= 0:
-			raise ValueError("sleep_hours must be greater than 0")
-		if validated["exercise_frequency"] < 0:
-			raise ValueError("exercise_frequency must be >= 0")
+		if validated["sleep_hours_per_night"] <= 0:
+			raise ValueError("sleep_hours_per_night must be greater than 0")
+		if validated["exercise_hours_per_week"] < 0:
+			raise ValueError("exercise_hours_per_week must be >= 0")
 		if not 1 <= validated["mental_health_rating"] <= 10:
 			raise ValueError("mental_health_rating must be between 1 and 10")
 		if validated["study_hours_per_day"] < 0:
@@ -122,7 +122,7 @@ class GradePredictor:
 		x_scaled = (x - mean) / scale
 
 		Input order:
-		age, attendance_percentage, sleep_hours, exercise_frequency,
+		age, attendance_percentage, sleep_hours_per_night, exercise_hours_per_week,
 		mental_health_rating, study_hours_per_day,
 		gender_Female, gender_Male, gender_Other
 		"""
@@ -143,8 +143,8 @@ class GradePredictor:
 			rows.append([
 				float(validated["age"]),
 				float(validated["attendance_percentage"]),
-				float(validated["sleep_hours"]),
-				float(validated["exercise_frequency"]),
+				float(validated["sleep_hours_per_night"]),
+				float(validated["exercise_hours_per_week"]),
 				float(validated["mental_health_rating"]),
 				float(validated["study_hours_per_day"]),
 				female,

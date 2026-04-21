@@ -52,10 +52,6 @@ class PromptChunker:
 
             data = json.loads(response)
 
-            for item in data:
-                item["id"] = str(uuid.uuid4())
-                item["completed"] = False
-
             return data
         
 

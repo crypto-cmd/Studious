@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Brain } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
 import XpBanner from '@components/XpBanner';
 import { useSessionStore } from '@lib/sessionStore';
 import { useTaskSummary } from '@hooks/useTaskSummary';
@@ -10,6 +11,9 @@ import CourseCard from '@components/CourseCard';
 import CourseFormModal from '@components/CourseFormModal';
 import WeekStrip from '@components/WeekStrip';
 import SectionHeader from '@components/SectionHeader';
+import AssignmentDueModal from '@components/AssignmentDueModal';
+import { useApi } from '@hooks/useApi';
+import { normalizeAssignments, normalizeDueDate, type Assignment } from '@lib/assignments';
 
 type CourseFormMode = 'add' | 'edit';
 
@@ -30,6 +34,8 @@ type HomeDashboardProps = {
 };
 
 export default function HomeDashboard({ studentName }: HomeDashboardProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const studentId = useSessionStore((snapshot) => snapshot.studentId);
   const { completedCount, totalCount, totalXp, level } = useTaskSummary(studentId);
   const {
@@ -49,9 +55,183 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
   const [uploadStatusMessage, setUploadStatusMessage] = useState<string | null>(null);
   const [isUploadingMaterial, setIsUploadingMaterial] = useState(false);
   const [pendingDeleteCode, setPendingDeleteCode] = useState<string | null>(null);
+  const [calendarAssignments, setCalendarAssignments] = useState<Assignment[]>([]);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [selectedDueDate, setSelectedDueDate] = useState<string | null>(null);
 
   const displayName = studentName?.trim() || 'Student';
   const displayId = studentId == null ? 'Unknown' : String(studentId).trim() || 'Unknown';
+
+  useEffect(() => {
+    if (studentId == null) {
+      console.log('[HomeDashboard] No student ID; clearing calendar assignments.');
+      setCalendarAssignments([]);
+      setCalendarError(null);
+      setSelectedDueDate(null);
+      return;
+    }
+
+    if (courses.length === 0) {
+      console.log('[HomeDashboard] No courses available yet; skipping calendar assignment load.');
+      setCalendarAssignments([]);
+      setCalendarError(null);
+      return;
+    }
+
+    let isCancelled = false;
+    setCalendarError(null);
+    const studentIdValue = String(studentId);
+
+    console.log('[HomeDashboard] Loading calendar assignments', {
+      studentId: studentIdValue,
+      courseCodes: courses.map((course) => course.code),
+    });
+
+    const loadCalendarAssignments = async () => {
+      const assignmentGroups = await Promise.all(
+        courses.map(async (course) => {
+          try {
+            const payload = await useApi(
+              'tasks',
+              'GET',
+              { student_id: studentIdValue, course_code: course.code },
+              {},
+              { cache: 'no-store' },
+              `Unable to load assignments for ${course.code}`
+            );
+
+            return normalizeAssignments(payload);
+          } catch (error) {
+            console.error('[HomeDashboard] Failed to load assignments for course', course.code, error);
+            if (!isCancelled) {
+              setCalendarError(error instanceof Error ? error.message : `Unable to load assignments for ${course.code}`);
+            }
+
+            return [] as Assignment[];
+          }
+        })
+      );
+
+      if (isCancelled) {
+        return;
+      }
+
+      const nextAssignments = assignmentGroups.flat().filter((assignment) => Boolean(normalizeDueDate(assignment.dueDate)));
+      console.log('[HomeDashboard] Calendar assignments loaded', {
+        totalAssignments: nextAssignments.length,
+        assignmentsWithDueDates: nextAssignments.map((assignment) => ({
+          id: assignment.id,
+          courseCode: assignment.courseCode,
+          dueDate: assignment.dueDate,
+          title: assignment.title,
+        })),
+      });
+      setCalendarAssignments(nextAssignments);
+    };
+
+    void loadCalendarAssignments();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [courses, studentId]);
+
+  const assignmentCountsByDate = useMemo(() => {
+    const nextCounts = calendarAssignments.reduce<Record<string, number>>((counts, assignment) => {
+      const dateKey = normalizeDueDate(assignment.dueDate);
+      if (!dateKey) {
+        return counts;
+      }
+
+      counts[dateKey] = (counts[dateKey] ?? 0) + 1;
+      return counts;
+    }, {});
+
+    console.log('[HomeDashboard] Assignment counts by date', nextCounts);
+    return nextCounts;
+  }, [calendarAssignments]);
+
+  const examCountsByDate = useMemo(() => {
+    const nextCounts = courses.reduce<Record<string, number>>((counts, course) => {
+      const dateKey = normalizeDueDate(course.finalExamDate);
+      if (!dateKey) {
+        return counts;
+      }
+
+      counts[dateKey] = (counts[dateKey] ?? 0) + 1;
+      return counts;
+    }, {});
+
+    console.log('[HomeDashboard] Exam counts by date', nextCounts);
+    return nextCounts;
+  }, [courses]);
+
+  useEffect(() => {
+    if (!selectedDueDate) {
+      return;
+    }
+
+    const hasMatchingAssignment = calendarAssignments.some((assignment) => normalizeDueDate(assignment.dueDate) === selectedDueDate);
+    const hasMatchingExam = courses.some((course) => normalizeDueDate(course.finalExamDate) === selectedDueDate);
+
+    if (!hasMatchingAssignment && !hasMatchingExam) {
+      setSelectedDueDate(null);
+    }
+  }, [calendarAssignments, courses, selectedDueDate]);
+
+  const selectedDueAssignments = useMemo(() => {
+    if (!selectedDueDate) {
+      return [];
+    }
+
+    const matchingAssignments = calendarAssignments.filter((assignment) => normalizeDueDate(assignment.dueDate) === selectedDueDate);
+    console.log('[HomeDashboard] Selected due date assignments', {
+      selectedDueDate,
+      count: matchingAssignments.length,
+      assignmentIds: matchingAssignments.map((assignment) => assignment.id),
+    });
+    return matchingAssignments;
+  }, [calendarAssignments, selectedDueDate]);
+
+  const selectedDueExams = useMemo(() => {
+    if (!selectedDueDate) {
+      return [] as Array<{ courseCode: string; courseTitle: string | null }>;
+    }
+
+    const matchingExams = courses
+      .filter((course) => normalizeDueDate(course.finalExamDate) === selectedDueDate)
+      .map((course) => ({
+        courseCode: course.code,
+        courseTitle: course.title,
+      }));
+
+    console.log('[HomeDashboard] Selected due date exams', {
+      selectedDueDate,
+      count: matchingExams.length,
+      courseCodes: matchingExams.map((exam) => exam.courseCode),
+    });
+
+    return matchingExams;
+  }, [courses, selectedDueDate]);
+
+  const openAssignmentFromModal = (assignment: Assignment) => {
+    if (!assignment.courseCode) {
+      console.warn('[HomeDashboard] Assignment missing courseCode, cannot navigate', assignment);
+      return;
+    }
+
+    console.log('[HomeDashboard] Navigating to task manager from assignment', {
+      assignmentId: assignment.id,
+      courseCode: assignment.courseCode,
+    });
+
+    const nextParams = new URLSearchParams(window.location.search);
+    nextParams.set('tab', 'tasks');
+    nextParams.set('course', assignment.courseCode);
+    nextParams.set('assignment', assignment.id);
+
+    router.push(`${pathname}?${nextParams.toString()}`);
+  };
 
   const combinedError = useMemo(() => {
     return mutationError ?? formError;
@@ -206,7 +386,22 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
 
       <XpBanner level={level} xp={totalXp} completed={completedCount} total={totalCount} />
 
-      <WeekStrip />
+      {calendarError && <p className="text-sm text-red-300 px-2 mb-3">{calendarError}</p>}
+
+      <WeekStrip
+        assignmentCountsByDate={assignmentCountsByDate}
+        examCountsByDate={examCountsByDate}
+        onDaySelect={setSelectedDueDate}
+      />
+
+      <AssignmentDueModal
+        isOpen={Boolean(selectedDueDate && (selectedDueAssignments.length > 0 || selectedDueExams.length > 0))}
+        dueDate={selectedDueDate}
+        assignments={selectedDueAssignments}
+        exams={selectedDueExams}
+        onClose={() => setSelectedDueDate(null)}
+        onSelectAssignment={openAssignmentFromModal}
+      />
 
       <section>
         <SectionHeader

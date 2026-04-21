@@ -53,7 +53,19 @@ export async function GET(request: Request) {
                 ? (tasksPayload as { tasks?: unknown }).tasks
                 : [];
 
-        return { ...assignmentRecord, tasks };
+        const resolvedCourseCode =
+            typeof assignmentRecord.course_code === 'string' && assignmentRecord.course_code.trim().length > 0
+                ? assignmentRecord.course_code
+                : typeof assignmentRecord.courseCode === 'string' && assignmentRecord.courseCode.trim().length > 0
+                    ? assignmentRecord.courseCode
+                    : courseCode;
+
+        return {
+            ...assignmentRecord,
+            course_code: resolvedCourseCode,
+            courseCode: resolvedCourseCode,
+            tasks,
+        };
     });
 
     const assignmentsWithTasks = await Promise.all(tasksPromises);
@@ -80,6 +92,51 @@ export async function PATCH(request: Request) {
         `/api/assignments/${studentId}/${courseCode}/${assignmentId}/complete_task/${taskId}`,
         {
             method: 'PATCH',
+        }
+    );
+}
+
+export async function PUT(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const studentId = searchParams.get("student_id");
+    const courseCode = searchParams.get("course_code");
+    const assignmentId = searchParams.get("assignment_id");
+
+    if (!studentId || !courseCode || !assignmentId) {
+        return Response.json(
+            { error: "Missing student_id, course_code, or assignment_id" },
+            { status: 400 }
+        );
+    }
+
+    const payload = await request.json();
+
+    return proxyBackend(
+        `/api/assignments/${studentId}/${courseCode}/${assignmentId}`,
+        {
+            method: 'PUT',
+            body: payload,
+        }
+    );
+}
+
+export async function DELETE(request: Request) {
+    const { searchParams } = new URL(request.url);
+    const studentId = searchParams.get("student_id");
+    const courseCode = searchParams.get("course_code");
+    const assignmentId = searchParams.get("assignment_id");
+
+    if (!studentId || !courseCode || !assignmentId) {
+        return Response.json(
+            { error: "Missing student_id, course_code, or assignment_id" },
+            { status: 400 }
+        );
+    }
+
+    return proxyBackend(
+        `/api/assignments/${studentId}/${courseCode}/${assignmentId}`,
+        {
+            method: 'DELETE',
         }
     );
 }

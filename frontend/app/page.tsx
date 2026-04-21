@@ -19,8 +19,7 @@ import Loading from "@components/Loading";
 type AuthIntent = "signin" | "signup" | null;
 
 type SignupDefaults = {
-  firstname: string;
-  lastname: string;
+  name: string;
   nickname: string;
 };
 
@@ -40,8 +39,7 @@ type OnboardingForm = {
 };
 
 const EMPTY_SIGNUP_DEFAULTS: SignupDefaults = {
-  firstname: "",
-  lastname: "",
+  name: "",
   nickname: "",
 };
 
@@ -111,39 +109,35 @@ function buildSignupDefaults(sessionUser: {
     sessionUser.email?.split("@")[0] ||
     "";
 
-  const nameParts = seededName.trim().split(/\s+/).filter(Boolean);
   return {
-    firstname: nameParts[0] ?? "",
-    lastname: nameParts.slice(1).join(" "),
+    name: seededName.trim(),
     nickname: seededName.trim(),
   } satisfies SignupDefaults;
-}
-
-function buildDisplayName(firstname: string, lastname: string, nickname: string) {
-  return nickname.trim() || [firstname.trim(), lastname.trim()].filter(Boolean).join(" ");
 }
 
 function SearchParamSync({
   onTabParam,
   onCourseParam,
+  onAssignmentParam,
 }: {
   onTabParam: (tab: TabId) => void;
   onCourseParam: (courseCode: string) => void;
+  onAssignmentParam: (assignmentId: string) => void;
 }) {
   const searchParams = useSearchParams();
 
   useEffect(() => {
     const tabFromUrl = searchParams.get("tab");
-    const courseFromUrl = searchParams.get("course");
+    const courseFromUrl = searchParams.get("course") ?? "";
+    const assignmentFromUrl = searchParams.get("assignment") ?? "";
 
     if (tabFromUrl === "analytics" || tabFromUrl === "home" || tabFromUrl === "tasks" || tabFromUrl === "timer" || tabFromUrl === "calendar") {
       onTabParam(tabFromUrl as TabId);
     }
 
-    if (courseFromUrl) {
-      onCourseParam(courseFromUrl);
-    }
-  }, [onCourseParam, onTabParam, searchParams]);
+    onCourseParam(courseFromUrl);
+    onAssignmentParam(assignmentFromUrl);
+  }, [onAssignmentParam, onCourseParam, onTabParam, searchParams]);
 
   return null;
 }
@@ -157,8 +151,7 @@ export default function App() {
   const [defaultSignupProfile, setDefaultSignupProfile] = useState<SignupDefaults>(EMPTY_SIGNUP_DEFAULTS);
   const [authIntent, setAuthIntent] = useState<AuthIntent>(null);
   const [isProfileLoading, setIsProfileLoading] = useState<boolean>(false);
-  const [signupFirstname, setSignupFirstname] = useState<string>("");
-  const [signupLastname, setSignupLastname] = useState<string>("");
+  const [signupName, setSignupName] = useState<string>("");
   const [signupNickname, setSignupNickname] = useState<string>("");
   const [signupStudentId, setSignupStudentId] = useState<string>("");
   const [signupGender, setSignupGender] = useState<string>("");
@@ -173,10 +166,10 @@ export default function App() {
   const [isCreatingProfile, setIsCreatingProfile] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<TabId>("home");
   const [selectedCourseCode, setSelectedCourseCode] = useState<string>("");
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>("");
 
   const resetSignupForm = () => {
-    setSignupFirstname("");
-    setSignupLastname("");
+    setSignupName("");
     setSignupNickname("");
     setSignupStudentId("");
     setSignupGender("");
@@ -384,11 +377,7 @@ export default function App() {
         }
 
         setLastProfileStatus(response.status);
-        const resolvedName = payload?.name ?? buildDisplayName(
-          payload?.firstname ?? "",
-          payload?.lastname ?? "",
-          payload?.nickname ?? ""
-        );
+        const resolvedName = payload?.name ?? payload?.nickname ?? null;
         setStudentName(resolvedName || null);
         sessionStoreActions.setStudentId(payload?.student_id ?? null);
         if (authIntent === "signup") {
@@ -420,17 +409,14 @@ export default function App() {
 
   useEffect(() => {
     if (authIntent === "signup") {
-      if (!signupFirstname && defaultSignupProfile.firstname) {
-        setSignupFirstname(defaultSignupProfile.firstname);
-      }
-      if (!signupLastname && defaultSignupProfile.lastname) {
-        setSignupLastname(defaultSignupProfile.lastname);
+      if (!signupName && defaultSignupProfile.name) {
+        setSignupName(defaultSignupProfile.name);
       }
       if (!signupNickname && defaultSignupProfile.nickname) {
         setSignupNickname(defaultSignupProfile.nickname);
       }
     }
-  }, [authIntent, defaultSignupProfile.firstname, defaultSignupProfile.lastname, defaultSignupProfile.nickname, signupFirstname, signupLastname, signupNickname]);
+  }, [authIntent, defaultSignupProfile.name, defaultSignupProfile.nickname, signupName, signupNickname]);
 
   useEffect(() => {
     if (authId && authIntent === "signup" && lastProfileStatus === 404) {
@@ -467,8 +453,7 @@ export default function App() {
       return;
     }
 
-    const nextFirstname = signupFirstname.trim();
-    const nextLastname = signupLastname.trim();
+    const nextName = signupName.trim();
     const nextNickname = signupNickname.trim();
     const nextStudentId = signupStudentId.trim();
     const nextCourseCode = onboardingForm.courseCode.trim().toUpperCase();
@@ -492,7 +477,7 @@ export default function App() {
     const currentPredictedGrade = toNumberOrNull(onboardingForm.currentPredictedGrade);
     const finalPredictedGrade = toNumberOrNull(onboardingForm.finalPredictedGrade);
 
-    if (!nextFirstname || !nextLastname || !nextNickname || !nextStudentId || !signupGender || age == null) {
+    if (!nextName || !nextStudentId || !signupGender || age == null) {
       setAuthError("Complete your profile basics, including age, before continuing.");
       return;
     }
@@ -513,19 +498,17 @@ export default function App() {
         },
         body: JSON.stringify({
           auth_id: authId,
-          firstname: nextFirstname,
-          lastname: nextLastname,
-          nickname: nextNickname,
+          nickname: nextNickname || null,
           student_id: nextStudentId,
           gender: signupGender,
           age,
-          name: buildDisplayName(nextFirstname, nextLastname, nextNickname),
+          name: nextName,
           onboarding: {
             course_code: nextCourseCode,
             final_exam_date: onboardingForm.finalExamDate,
             attendance_percentage: attendancePercentage,
-            sleep_hours: sleepHours,
-            exercise_frequency: exerciseFrequency,
+            sleep_hours_per_night: sleepHours,
+            exercise_hours_per_week: exerciseFrequency,
             mental_health_rating: mentalHealthRating,
             study_hours_per_day: studyHoursPerDay,
             current_predicted_grade: currentPredictedGrade,
@@ -542,7 +525,7 @@ export default function App() {
 
       window.sessionStorage.setItem("auth_intent", "signin");
       setAuthIntent("signin");
-      setStudentName(payload?.name ?? buildDisplayName(nextFirstname, nextLastname, nextNickname));
+      setStudentName(payload?.name ?? nextName);
       sessionStoreActions.setStudentId(payload?.student_id ?? null);
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "Unable to create your profile right now.");
@@ -558,8 +541,11 @@ export default function App() {
 
     const nextParams = new URLSearchParams(window.location.search);
     nextParams.set("tab", tab);
-    if (tab !== "analytics") {
+    if (tab === "analytics") {
+      nextParams.delete("assignment");
+    } else {
       nextParams.delete("course");
+      nextParams.delete("assignment");
     }
 
     const nextUrl = `${pathname}?${nextParams.toString()}`;
@@ -585,7 +571,7 @@ export default function App() {
       case "home":
         return <HomeDashboard studentName={studentName} />;
       case "tasks":
-        return <TaskManager />;
+        return <TaskManager initialCourseCode={selectedCourseCode} initialAssignmentId={selectedAssignmentId} />;
       case "timer":
         return (
           <FocusTimer />
@@ -604,7 +590,7 @@ export default function App() {
       default:
         return <HomeDashboard studentName={studentName} />;
     }
-  }, [activeTab, selectedCourseCode, studentName]);
+  }, [activeTab, selectedAssignmentId, selectedCourseCode, studentName]);
 
   const copyDiagnostics = async () => {
     const diagnostics = {
@@ -722,27 +708,15 @@ export default function App() {
 
               {onboardingStep === 1 && (
                 <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-gray-300">First name</label>
-                      <input
-                        type="text"
-                        value={signupFirstname}
-                        onChange={(event) => setSignupFirstname(event.target.value)}
-                        placeholder="Ada"
-                        className="w-full bg-[#132e2a] text-white rounded-xl p-3 border border-[#1b3f3a] focus:outline-none focus:border-cyan-400"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <label className="text-xs font-semibold text-gray-300">Last name</label>
-                      <input
-                        type="text"
-                        value={signupLastname}
-                        onChange={(event) => setSignupLastname(event.target.value)}
-                        placeholder="Lovelace"
-                        className="w-full bg-[#132e2a] text-white rounded-xl p-3 border border-[#1b3f3a] focus:outline-none focus:border-cyan-400"
-                      />
-                    </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-xs font-semibold text-gray-300">Name</label>
+                    <input
+                      type="text"
+                      value={signupName}
+                      onChange={(event) => setSignupName(event.target.value)}
+                      placeholder="Ada Lovelace"
+                      className="w-full bg-[#132e2a] text-white rounded-xl p-3 border border-[#1b3f3a] focus:outline-none focus:border-cyan-400"
+                    />
                   </div>
 
                   <div className="flex flex-col gap-2">
@@ -828,7 +802,7 @@ export default function App() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <label className="flex flex-col gap-2">
-                      <span className="text-xs font-semibold text-gray-300">Exercise (sessions/week)</span>
+                      <span className="text-xs font-semibold text-gray-300">Exercise (hrs/week)</span>
                       <input
                         type="number"
                         step="1"
@@ -855,7 +829,7 @@ export default function App() {
                   </div>
 
                   <label className="flex flex-col gap-2">
-                    <span className="text-xs font-semibold text-gray-300">Study time (hrs/day)</span>
+                    <span className="text-xs font-semibold text-gray-300">Study time (hrs/week)</span>
                     <input
                       type="number"
                       step="0.5"
@@ -987,7 +961,11 @@ export default function App() {
   return (
     <AppShell>
       <Suspense fallback={null}>
-        <SearchParamSync onTabParam={setActiveTab} onCourseParam={setSelectedCourseCode} />
+        <SearchParamSync
+          onTabParam={setActiveTab}
+          onCourseParam={setSelectedCourseCode}
+          onAssignmentParam={setSelectedAssignmentId}
+        />
       </Suspense>
       <div className="mb-4 flex justify-end">
         <ProfileButton studentName={studentName} />

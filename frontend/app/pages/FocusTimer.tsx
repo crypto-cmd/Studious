@@ -9,6 +9,14 @@ import FocusSessionCard from '@components/FocusSessionCard';
 import FocusSummaryCard from '@components/FocusSummaryCard';
 import SectionHeader from '@components/SectionHeader';
 
+const FOCUS_RATINGS = [
+  { score: 1, emoji: '😫', label: 'Very low focus' },
+  { score: 2, emoji: '🙁', label: 'Low focus' },
+  { score: 3, emoji: '😐', label: 'Okay focus' },
+  { score: 4, emoji: '🙂', label: 'Good focus' },
+  { score: 5, emoji: '🤩', label: 'Great focus' },
+] as const;
+
 function formatTime(seconds: number) {
   const safeSeconds = Math.max(0, seconds);
   const m = Math.floor(safeSeconds / 60);
@@ -21,6 +29,7 @@ export default function FocusTimer() {
   const { completedCount, totalCount, totalXp, level } = useTaskSummary(studentId);
   const { recentSessions, totalFocusHours, isLoading, isSaving, error, saveSession } = useFocusSessions(studentId);
   const [isActive, setIsActive] = useState(false);
+  const [pendingSessionSeconds, setPendingSessionSeconds] = useState<number | null>(null);
 
   // Timer state (in seconds) - stopwatch mode starts at zero
   const [time, setTime] = useState(0);
@@ -56,8 +65,17 @@ export default function FocusTimer() {
       return;
     }
 
+    setPendingSessionSeconds(elapsedSeconds);
+  };
+
+  const submitFocusRating = async (focusScore: number) => {
+    if (studentId == null || pendingSessionSeconds == null || isSaving) {
+      return;
+    }
+
     try {
-      await saveSession(elapsedSeconds);
+      await saveSession(pendingSessionSeconds, focusScore);
+      setPendingSessionSeconds(null);
     } catch (error: unknown) {
       // The hook keeps the latest error state; this is a local guard only.
     }
@@ -123,6 +141,42 @@ export default function FocusTimer() {
           Reset without saving
         </button>
       </section>
+
+      {pendingSessionSeconds != null && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-3xl border border-[#1b3f3a] bg-[#132e2a] p-5 shadow-2xl shadow-black/40">
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-white">Rate this session</h2>
+              <p className="mt-1 text-sm text-gray-400">How focused did this session feel?</p>
+            </div>
+
+            <div className="grid grid-cols-5 gap-2">
+              {FOCUS_RATINGS.map((rating) => (
+                <button
+                  key={rating.score}
+                  type="button"
+                  onClick={() => void submitFocusRating(rating.score)}
+                  disabled={isSaving}
+                  className="flex flex-col items-center gap-2 rounded-2xl border border-[#1b3f3a] bg-[#091f1c] px-2 py-3 text-center transition-transform hover:-translate-y-0.5 hover:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <span className="text-2xl">{rating.emoji}</span>
+                  <span className="text-[10px] leading-tight text-gray-300">{rating.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setPendingSessionSeconds(null)}
+                className="rounded-xl border border-[#1b3f3a] px-4 py-2 text-sm font-semibold text-gray-300 transition-colors hover:border-cyan-400 hover:text-white"
+              >
+                Not now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- Recent Sessions Log --- */}
       <section className="mb-6">
