@@ -34,19 +34,19 @@ function formatMetricDelta(metric: ImprovementMetric) {
         return `${signedValue}%`;
     }
 
-    if (metric.key === 'sleep_hours') {
+    if (metric.key === 'sleep_hours_per_night') {
         return `${signedValue} hrs/night`;
     }
 
-    if (metric.key === 'exercise_frequency') {
-        return `${signedValue} sessions/week`;
+    if (metric.key === 'exercise_hours_per_week') {
+        return `${signedValue} hrs/week`;
     }
 
     if (metric.key === 'mental_health_rating') {
         return `${signedValue} points`;
     }
 
-    return `${signedValue} hrs/day`;
+    return `${signedValue} hrs/week`;
 }
 
 function buildInsightCards(

@@ -183,9 +183,9 @@ parameters:
         onboarding:
           type: object
           properties:
-            sleep_hours:
+            sleep_hours_per_night:
               type: number
-            exercise_frequency:
+            exercise_hours_per_week:
               type: number
             mental_health_rating:
               type: number

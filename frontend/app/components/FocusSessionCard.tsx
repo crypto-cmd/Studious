@@ -40,6 +40,15 @@ function formatDuration(seconds: number) {
 }
 
 function getSessionDurationSeconds(session: FocusSession) {
+    if (session.sessionStart && session.sessionEnd) {
+        const startDate = new Date(session.sessionStart);
+        const endDate = new Date(session.sessionEnd);
+
+        if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime()) && endDate.getTime() >= startDate.getTime()) {
+            return Math.max(0, Math.round((endDate.getTime() - startDate.getTime()) / 1000));
+        }
+    }
+
     const startSeconds = parseTimeToSeconds(session.startTime);
     const endSeconds = parseTimeToSeconds(session.endTime);
 
@@ -64,12 +73,14 @@ function formatSessionDate(value: string) {
 }
 
 export default function FocusSessionCard({ session }: FocusSessionCardProps) {
+    const sessionDate = session.sessionStart || session.createdAt;
+
     return (
         <div className="bg-[#132e2a] rounded-2xl p-4 border border-[#1b3f3a] flex justify-between items-center">
             <div>
                 <span className="font-bold text-cyan-400">{formatDuration(getSessionDurationSeconds(session))}</span>
                 <p className="text-xs text-gray-400 mt-1">
-                    {session.dayOfWeek || formatSessionDate(session.createdAt)} · {session.startTime} - {session.endTime}
+                    {session.dayOfWeek || formatSessionDate(sessionDate)} · {session.startTime || session.sessionStart || 'Start unavailable'} - {session.endTime || session.sessionEnd || 'End unavailable'}
                 </p>
             </div>
         </div>

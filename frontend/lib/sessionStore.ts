@@ -40,9 +40,11 @@ export function useSessionStore<T>(selector: (snapshot: SessionState) => T): T {
 
 export const sessionStoreActions = {
     setAuthId(authId: string | null) {
+        console.log("Setting authId in session store:", authId);
         setState({ authId });
     },
     setStudentId(studentId: string | number | null) {
+        console.log("Setting studentId in session store:", studentId);
         setState({ studentId });
     },
     clear() {
