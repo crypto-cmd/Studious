@@ -114,7 +114,7 @@ export default function WeekStrip({ assignmentCountsByDate, examCountsByDate, on
                 </button>
             </div>
 
-            <div className="flex justify-between items-center hide-scrollbar gap-2 px-1 overflow-visible">
+            <div className="grid grid-cols-7 gap-1 px-1 sm:flex sm:justify-between sm:items-center sm:gap-2 overflow-visible">
                 {days.map((day) => (
                     <button
                         key={`${day.dayStr}-${day.date}`}
@@ -136,21 +136,21 @@ export default function WeekStrip({ assignmentCountsByDate, examCountsByDate, on
                                 onDaySelect(day.dateKey);
                             }
                         }}
-                        className={`relative flex flex-col items-center justify-center p-2 rounded-xl min-w-[45px] transition-all ${day.isActive
+                        className={`relative flex flex-col items-center justify-center rounded-xl min-w-0 py-2 px-1 transition-all ${day.isActive
                             ? 'bg-cyan-400 text-[#091f1c] font-bold shadow-md'
                             : 'text-gray-400 hover:bg-[#1b3f3a]'
-                            } ${((assignmentCountsByDate[day.dateKey] ?? 0) > 0 || (examCountsByDate[day.dateKey] ?? 0) > 0) ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default'}`}
+                            } ${((assignmentCountsByDate[day.dateKey] ?? 0) > 0 || (examCountsByDate[day.dateKey] ?? 0) > 0) ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default'} sm:min-w-[45px] sm:p-2`}
                     >
-                        <span className="text-xs mb-1">{day.dayStr}</span>
-                        <span className="text-lg">{day.date}</span>
+                        <span className="text-[10px] sm:text-xs mb-1">{day.dayStr}</span>
+                        <span className="text-sm sm:text-lg leading-none">{day.date}</span>
                         {(assignmentCountsByDate[day.dateKey] ?? 0) > 0 && (
-                            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center">
+                            <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center">
                                 <span className="absolute h-full w-full rounded-full bg-red-400/30 animate-ping" />
                                 <span className="relative h-2.5 w-2.5 rounded-full bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.8)]" />
                             </span>
                         )}
                         {(examCountsByDate[day.dateKey] ?? 0) > 0 && (
-                            <span className="absolute -top-1.5 -left-1.5 flex h-4 w-4 items-center justify-center">
+                            <span className="absolute -top-0.5 -left-0.5 flex h-4 w-4 items-center justify-center">
                                 <span className="absolute h-full w-full rounded-full bg-amber-300/30 animate-ping" />
                                 <span className="relative h-2.5 w-2.5 rounded-full bg-amber-300 shadow-[0_0_10px_rgba(252,211,77,0.8)]" />
                             </span>

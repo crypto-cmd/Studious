@@ -159,6 +159,14 @@ export default function AnalyticsDashboard({ selectedCourseCode: initialCourseCo
     const studentId = useSessionStore((snapshot) => snapshot.studentId);
     const { courses, isLoading, error } = useCourses(studentId);
     const [selectedCourseCode, setSelectedCourseCode] = useState(initialCourseCode);
+
+    useEffect(() => {
+        console.log('[Analytics] URL-provided course changed', {
+            initialCourseCode,
+            currentSelectedCourseCode: selectedCourseCode,
+        });
+    }, [initialCourseCode, selectedCourseCode]);
+
     const selectedCourse = useMemo(() => {
         if (!courses.length) {
             return null;
@@ -167,29 +175,39 @@ export default function AnalyticsDashboard({ selectedCourseCode: initialCourseCo
         return courses.find((course) => course.code === selectedCourseCode) ?? courses[0] ?? null;
     }, [courses, selectedCourseCode]);
 
+    useEffect(() => {
+        console.log('[Analytics] Course selection resolution', {
+            availableCourseCodes: courses.map((course) => course.code),
+            selectedCourseCode,
+            selectedCourseResolvedTo: selectedCourse?.code ?? null,
+        });
+    }, [courses, selectedCourse, selectedCourseCode]);
+
     const {
         data: improvementData,
         isLoading: isLoadingImprovement,
         error: improvementError,
     } = useCourseImprovement(studentId, selectedCourse?.code ?? '');
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => {
         if (courses.length === 0) {
             setSelectedCourseCode('');
             return;
         }
 
+        if (initialCourseCode && courses.some((course) => course.code === initialCourseCode)) {
+            setSelectedCourseCode(initialCourseCode);
+            return;
+        }
+
         setSelectedCourseCode((current) => {
-            // If current selection is still valid, keep it
             if (current && courses.some((course) => course.code === current)) {
                 return current;
             }
 
-            // Default to first course
             return courses[0]?.code ?? '';
         });
-    }, [courses.length]);
+    }, [courses, initialCourseCode]);
 
     const insightCards = useMemo(
         () => buildInsightCards(selectedCourse, improvementData),

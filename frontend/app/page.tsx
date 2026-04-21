@@ -131,10 +131,21 @@ function SearchParamSync({
     const courseFromUrl = searchParams.get("course") ?? "";
     const assignmentFromUrl = searchParams.get("assignment") ?? "";
 
+    console.log("[SearchParamSync] URL params parsed", {
+      tabFromUrl,
+      courseFromUrl,
+      assignmentFromUrl,
+    });
+
     if (tabFromUrl === "analytics" || tabFromUrl === "home" || tabFromUrl === "tasks" || tabFromUrl === "timer" || tabFromUrl === "calendar") {
+      console.log("[SearchParamSync] Applying tab from URL", { tabFromUrl });
       onTabParam(tabFromUrl as TabId);
     }
 
+    console.log("[SearchParamSync] Applying course/assignment from URL", {
+      courseFromUrl,
+      assignmentFromUrl,
+    });
     onCourseParam(courseFromUrl);
     onAssignmentParam(assignmentFromUrl);
   }, [onAssignmentParam, onCourseParam, onTabParam, searchParams]);
