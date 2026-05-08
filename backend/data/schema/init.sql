@@ -87,7 +87,7 @@ CREATE TABLE
         PRIMARY KEY (student_id)
     );
 
--- Keep track of focus sessions for students in their courses, including feedback and ratings (for analytics purposes)
+-- Keep track of focus sessions for students in their courses, including ratings (for analytics purposes)
 CREATE TABLE
     IF NOT EXISTS focus_sessions (
         id uuid NOT NULL DEFAULT gen_random_uuid (),
@@ -95,6 +95,7 @@ CREATE TABLE
         -- Timestamp for when the focus session started and ended 
         session_start TIMESTAMPTZ NOT NULL,
         session_end TIMESTAMPTZ NOT NULL,
+
         -- Theta for the focus session as [0, 2pi] representing the time of day in a week on a circular scale
         -- Stored at write time to avoid expensive calculations at read time
         theta_start FLOAT CHECK (
@@ -105,14 +106,28 @@ CREATE TABLE
             theta_end >= 0
             AND theta_end < 6.28318530718
         ) NOT NULL,
+
         -- Quality rating for the focus session (for analytics purposes)
         -- A score from 1 to 5 representing the quality of the focus session, as rated by the student
         focus_score INT CHECK (
             focus_score >= 1
             AND focus_score <= 5
         ) NOT NULL,
+
+        -- Productivity (rating from 1 to 3) of how much they think they covered
+        productivity_score INT CHECK (
+            productivity_score >= 1
+            AND productivity_score <= 3
+        ) NOT NULL,
+
+        -- Mental Health rating (1 to 10) during the focus session
+        mental_health_rating INT CHECK (
+            mental_health_rating >= 1
+            AND mental_health_rating <= 10
+        ) NOT NULL,
+
         -- Final score
-        -- A calculated score [0, 1] representing the quality of the focus session
+        -- A calculated score [0, 1] representing the quality of the focus session calculated
         quality_score FLOAT CHECK (
             quality_score >= 0
             AND quality_score <= 1

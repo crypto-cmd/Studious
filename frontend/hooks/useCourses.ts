@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { useApi as apiRequest } from '@hooks/useApi';
+import { apiRequest } from '@hooks/useApi';
 
 export type CoursePrediction = {
     grade: number;

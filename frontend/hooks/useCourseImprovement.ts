@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useApi } from '@hooks/useApi';
+import { apiRequest } from '@hooks/useApi';
 
 type ImprovementApiResponse = {
     current_profile?: {
@@ -94,7 +94,7 @@ export function useCourseImprovement(studentId: string | number | null, courseCo
         setIsLoading(true);
         setError(null);
 
-        useApi(
+        apiRequest(
             'improvement',
             'GET',
             { student_id: String(studentId), course_code: courseCode },

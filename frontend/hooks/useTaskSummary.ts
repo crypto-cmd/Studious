@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useApi } from '@hooks/useApi';
+import { apiRequest } from '@hooks/useApi';
 
 type TaskSummary = {
     completedCount: number;
@@ -99,7 +99,7 @@ export function useTaskSummary(studentId: string | number | null, options?: UseT
         let isCancelled = false;
         const studentIdValue = String(studentId);
 
-        useApi(
+        apiRequest(
             'courses',
             'GET',
             { student_id: studentIdValue },
@@ -116,7 +116,7 @@ export function useTaskSummary(studentId: string | number | null, options?: UseT
 
                 const assignmentGroups = await Promise.all(
                     courseCodes.map(async (courseCode) => {
-                        const assignmentsPayload = await useApi(
+                        const assignmentsPayload = await apiRequest(
                             'tasks',
                             'GET',
                             { student_id: studentIdValue, course_code: courseCode },
