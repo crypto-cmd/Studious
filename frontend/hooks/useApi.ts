@@ -31,7 +31,7 @@ function mergeHeaders(headers?: HeadersInit): HeadersInit {
     };
 }
 
-export async function useApi<T = unknown>(
+export async function apiRequest<T = unknown>(
     route: string,
     method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE' = 'GET',
     params: Params = {},

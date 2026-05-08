@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useApi } from '@hooks/useApi';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { apiRequest } from '@hooks/useApi';
 
 export type FocusSession = {
     id: string;
@@ -9,6 +9,8 @@ export type FocusSession = {
     thetaEnd: number | null;
     createdAt: string;
     focusScore: number | null;
+    mentalHealthRating: number | null;
+    productivityScore: number | null;
     qualityScore: number | null;
 };
 
@@ -19,7 +21,7 @@ type UseFocusSessionsResult = {
     isSaving: boolean;
     error: string | null;
     refresh: () => Promise<void>;
-    saveSession: (durationSeconds: number, focusScore: number) => Promise<void>;
+    saveSession: (durationSeconds: number, focusScore: number, productivityScore: number) => Promise<void>;
 };
 
 function normalizeSessions(payload: unknown): FocusSession[] {
@@ -39,6 +41,8 @@ function normalizeSessions(payload: unknown): FocusSession[] {
         const thetaEndValue = sessionRecord.theta_end;
         const createdAtValue = sessionRecord.created_at;
         const focusScoreValue = sessionRecord.focus_score;
+        const productivityScoreValue = sessionRecord.productivity_score;
+        const mentalHealthRatingValue = sessionRecord.mental_health_rating;
         const qualityScoreValue = sessionRecord.quality_score;
 
         return {
@@ -49,6 +53,8 @@ function normalizeSessions(payload: unknown): FocusSession[] {
             thetaEnd: Number.isFinite(Number(thetaEndValue)) ? Number(thetaEndValue) : null,
             createdAt: typeof createdAtValue === 'string' ? createdAtValue : '',
             focusScore: Number.isFinite(Number(focusScoreValue)) ? Number(focusScoreValue) : null,
+            productivityScore: Number.isFinite(Number(productivityScoreValue)) ? Number(productivityScoreValue) : null,
+            mentalHealthRating: Number.isFinite(Number(mentalHealthRatingValue)) ? Number(mentalHealthRatingValue) : null,
             qualityScore: Number.isFinite(Number(qualityScoreValue)) ? Number(qualityScoreValue) : null,
         };
     });
@@ -72,21 +78,13 @@ function getTotalFocusHours(sessions: FocusSession[]) {
     return Math.round((totalSeconds / 3600) * 10) / 10;
 }
 
-function getThetaFromDate(date: Date) {
-    const secondsPerDay = 24 * 60 * 60;
-    const secondsPerWeek = secondsPerDay * 7;
-    const dayOffset = date.getDay() * secondsPerDay;
-    const timeOffset = date.getHours() * 3600 + date.getMinutes() * 60 + date.getSeconds();
-    return (2 * Math.PI * (dayOffset + timeOffset)) / secondsPerWeek;
-}
-
 export function useFocusSessions(studentId: string | number | null): UseFocusSessionsResult {
     const [recentSessions, setRecentSessions] = useState<FocusSession[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const refresh = async () => {
+    const refresh = useCallback(async () => {
         if (studentId == null) {
             setRecentSessions([]);
             setError(null);
@@ -96,7 +94,7 @@ export function useFocusSessions(studentId: string | number | null): UseFocusSes
         setIsLoading(true);
 
         try {
-            const payload = await useApi(
+            const payload = await apiRequest(
                 'focus-sessions',
                 'GET',
                 { student_id: String(studentId) },
@@ -112,18 +110,19 @@ export function useFocusSessions(studentId: string | number | null): UseFocusSes
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [studentId]);
 
     useEffect(() => {
         void refresh();
-    }, [studentId]);
+    }, [refresh]);
 
-    const saveSession = async (durationSeconds: number, focusScore: number) => {
+    const saveSession = async (durationSeconds: number, focusScore: number, productivityScore: number) => {
         if (studentId == null || durationSeconds <= 0) {
             return;
         }
 
         const normalizedFocusScore = Math.max(1, Math.min(5, Math.round(focusScore)));
+        const normalizedProductivityScore = Math.max(1, Math.min(3, Math.round(productivityScore)));
 
         setIsSaving(true);
 
@@ -132,20 +131,17 @@ export function useFocusSessions(studentId: string | number | null): UseFocusSes
             const startDate = new Date(endDate.getTime() - durationSeconds * 1000);
             const sessionStart = startDate.toISOString();
             const sessionEnd = endDate.toISOString();
-            const thetaStart = getThetaFromDate(startDate);
-            const thetaEnd = getThetaFromDate(endDate);
 
-            await useApi(
+
+            await apiRequest(
                 'focus-sessions',
                 'POST',
                 { student_id: String(studentId) },
                 {
                     session_start: sessionStart,
                     session_end: sessionEnd,
-                    theta_start: thetaStart,
-                    theta_end: thetaEnd,
                     focus_score: normalizedFocusScore,
-                    quality_score: Number((normalizedFocusScore / 5).toFixed(2)),
+                    productivity_score: normalizedProductivityScore,
                 },
                 {},
                 'Unable to save session'

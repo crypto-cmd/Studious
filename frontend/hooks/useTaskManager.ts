@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useApi } from '@hooks/useApi';
+import { apiRequest } from '@hooks/useApi';
 import {
     normalizeAssignments,
     type Assignment,
@@ -133,7 +133,7 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         setErrorMessage(null);
 
         try {
-            await useApi(
+            await apiRequest(
                 'tasks',
                 'PATCH',
                 {
@@ -178,7 +178,7 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         setErrorMessage(null);
 
         try {
-            await useApi(
+            await apiRequest(
                 'tasks',
                 'POST',
                 { student_id: String(studentId), course_code: selectedCourse },
@@ -216,7 +216,7 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         setErrorMessage(null);
 
         try {
-            await useApi(
+            await apiRequest(
                 'tasks',
                 'PUT',
                 {
@@ -259,7 +259,7 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         setErrorMessage(null);
 
         try {
-            await useApi(
+            await apiRequest(
                 'tasks',
                 'DELETE',
                 {
@@ -295,7 +295,7 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         setIsLoadingCourses(true);
         setErrorMessage(null);
 
-        useApi(
+        apiRequest(
             'courses',
             'GET',
             { student_id: studentIdValue },
@@ -340,7 +340,7 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         setIsLoadingAssignments(true);
         setErrorMessage(null);
 
-        useApi(
+        apiRequest(
             'tasks',
             'GET',
             { student_id: studentIdValue, course_code: selectedCourse },

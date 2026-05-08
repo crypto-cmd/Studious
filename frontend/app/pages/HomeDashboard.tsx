@@ -12,7 +12,7 @@ import CourseFormModal from '@components/CourseFormModal';
 import WeekStrip from '@components/WeekStrip';
 import SectionHeader from '@components/SectionHeader';
 import AssignmentDueModal from '@components/AssignmentDueModal';
-import { useApi } from '@hooks/useApi';
+import { apiRequest } from '@hooks/useApi';
 import { normalizeAssignments, normalizeDueDate, type Assignment } from '@lib/assignments';
 
 type CourseFormMode = 'add' | 'edit';
@@ -91,7 +91,7 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
       const assignmentGroups = await Promise.all(
         courses.map(async (course) => {
           try {
-            const payload = await useApi(
+            const payload = await apiRequest(
               'tasks',
               'GET',
               { student_id: studentIdValue, course_code: course.code },

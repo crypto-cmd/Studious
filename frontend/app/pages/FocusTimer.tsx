@@ -17,6 +17,12 @@ const FOCUS_RATINGS = [
   { score: 5, emoji: '🤩', label: 'Great focus' },
 ] as const;
 
+const PRODUCTIVITY_RATINGS = [
+  { score: 1, emoji: '😫', label: 'Not productive' },
+  { score: 2, emoji: '😐', label: 'Somewhat productive' },
+  { score: 3, emoji: '🤩', label: 'Very productive' },
+] as const;
+
 function formatTime(seconds: number) {
   const safeSeconds = Math.max(0, seconds);
   const m = Math.floor(safeSeconds / 60);
@@ -30,6 +36,8 @@ export default function FocusTimer() {
   const { recentSessions, totalFocusHours, isLoading, isSaving, error, saveSession } = useFocusSessions(studentId);
   const [isActive, setIsActive] = useState(false);
   const [pendingSessionSeconds, setPendingSessionSeconds] = useState<number | null>(null);
+  const [selectedFocusScore, setSelectedFocusScore] = useState<number | null>(null);
+  const [selectedProductivityScore, setSelectedProductivityScore] = useState<number | null>(null);
 
   // Timer state (in seconds) - stopwatch mode starts at zero
   const [time, setTime] = useState(0);
@@ -66,6 +74,8 @@ export default function FocusTimer() {
     }
 
     setPendingSessionSeconds(elapsedSeconds);
+    setSelectedFocusScore(null);
+    setSelectedProductivityScore(null);
   };
 
   const submitFocusRating = async (focusScore: number) => {
@@ -73,10 +83,41 @@ export default function FocusTimer() {
       return;
     }
 
+    const nextFocusScore = focusScore;
+    setSelectedFocusScore(nextFocusScore);
+
+    if (selectedProductivityScore == null) {
+      return;
+    }
+
     try {
-      await saveSession(pendingSessionSeconds, focusScore);
+      await saveSession(pendingSessionSeconds, nextFocusScore, selectedProductivityScore);
       setPendingSessionSeconds(null);
-    } catch (error: unknown) {
+      setSelectedFocusScore(null);
+      setSelectedProductivityScore(null);
+    } catch {
+      // The hook keeps the latest error state; this is a local guard only.
+    }
+  };
+
+  const submitProductivityRating = async (productivityScore: number) => {
+    if (studentId == null || pendingSessionSeconds == null || isSaving) {
+      return;
+    }
+
+    const nextProductivityScore = productivityScore;
+    setSelectedProductivityScore(nextProductivityScore);
+
+    if (selectedFocusScore == null) {
+      return;
+    }
+
+    try {
+      await saveSession(pendingSessionSeconds, selectedFocusScore, nextProductivityScore);
+      setPendingSessionSeconds(null);
+      setSelectedFocusScore(null);
+      setSelectedProductivityScore(null);
+    } catch {
       // The hook keeps the latest error state; this is a local guard only.
     }
   };
@@ -157,13 +198,36 @@ export default function FocusTimer() {
                   type="button"
                   onClick={() => void submitFocusRating(rating.score)}
                   disabled={isSaving}
-                  className="flex flex-col items-center gap-2 rounded-2xl border border-[#1b3f3a] bg-[#091f1c] px-2 py-3 text-center transition-transform hover:-translate-y-0.5 hover:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60"
+                  className={`flex flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition-transform hover:-translate-y-0.5 hover:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60 ${selectedFocusScore === rating.score ? 'border-cyan-400 bg-cyan-400/10' : 'border-[#1b3f3a] bg-[#091f1c]'}`}
                 >
                   <span className="text-2xl">{rating.emoji}</span>
                   <span className="text-[10px] leading-tight text-gray-300">{rating.label}</span>
                 </button>
               ))}
             </div>
+            <div className="mt-4">
+              <h2 className="text-lg font-bold text-white">Productivity rating</h2>
+              <p className="mt-1 text-sm text-gray-400">How productive do you feel during this session?</p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {PRODUCTIVITY_RATINGS.map((rating) => (
+                <button
+                  key={rating.score}
+                  type="button"
+                  onClick={() => void submitProductivityRating(rating.score)}
+                  disabled={isSaving}
+                  className={`flex flex-col items-center gap-2 rounded-2xl border px-2 py-3 text-center transition-transform hover:-translate-y-0.5 hover:border-cyan-400/60 disabled:cursor-not-allowed disabled:opacity-60 ${selectedProductivityScore === rating.score ? 'border-cyan-400 bg-cyan-400/10' : 'border-[#1b3f3a] bg-[#091f1c]'}`}
+                >
+                  <span className="text-2xl">{rating.emoji}</span>
+                  <span className="text-[10px] leading-tight text-gray-300">{rating.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <p className="mt-4 text-xs text-gray-400">
+              Choose one focus rating and one productivity rating to save this session.
+            </p>
 
             <div className="mt-4 flex justify-end">
               <button
@@ -174,6 +238,7 @@ export default function FocusTimer() {
                 Not now
               </button>
             </div>
+
           </div>
         </div>
       )}
