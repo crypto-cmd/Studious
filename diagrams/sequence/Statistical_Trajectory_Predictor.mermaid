@@ -1,0 +1,20 @@
+sequenceDiagram
+    title STATISTICAL TRAJECTORY PREDICTOR
+    actor Student
+    participant Analytics
+    participant RouteManager
+    participant TrajectoryPredictor
+    participant Supabase
+
+    Student ->> Analytics: Opens Analytics
+    Analytics ->> RouteManager:API request to retrieve past predicted grades
+    RouteManager ->> Supabase: Retrieve past predicted grades
+    Supabase -->> RouteManager: Past predicted grades
+    RouteManager ->> TrajectoryPredictor: Past predicted grades
+    TrajectoryPredictor -->> RouteManager: Final predicted grade and current trajectory
+    RouteManager ->> Supabase: Store final predicted grade and current trajectory
+    Supabase -->> RouteManager: Confirmation message
+    RouteManager -->> Analytics: Final predicted grade and current trajectory
+    Analytics ->> Student:Final predicted grade and current trajectory
+
+

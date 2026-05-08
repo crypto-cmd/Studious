@@ -1,0 +1,25 @@
+sequenceDiagram
+    title Grade Improvement Suggestion
+    actor Student
+    participant Analytics
+    participant RouteManager
+    participant GradeImprovement
+    participant GradePredictor
+    participant Supabase
+
+    Student ->> Analytics: Opens Analytics
+    Analytics ->> RouteManager:API request to retrieve suggestions on improvements
+    RouteManager ->> Supabase: Retrieve student's data dictionary
+    Supabase -->> RouteManager: Student's data dictionary
+    RouteManager ->> GradeImprovement: Student's data dictionary
+    rect rgb(230, 242, 255)
+        Note over GradeImprovement, GradePredictor: Loop to find minimum of changes necessary
+        GradeImprovement ->> GradePredictor:new student's data dictionary
+        GradePredictor -->> GradeImprovement: new predicted grade
+    end
+
+    GradeImprovement -->> RouteManager: Improved predicted grade and data dictionary improvements
+    RouteManager -->> Analytics: Improved predicted grade and data dictionary improvements
+    Analytics -->> Student:Improved predicted grade and data dictionary improvements
+
+

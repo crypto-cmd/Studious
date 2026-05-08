@@ -1,0 +1,22 @@
+sequenceDiagram
+    title AI PROMPT CHUNKING
+    actor Student
+    participant TaskManager
+    participant RouteManager
+    participant PromptChunker
+    participant Pinecone
+    participant Supabase
+
+    Student ->> TaskManager: Enter task information and course materials
+    Student ->> TaskManager: Clicks "Break It Down"
+    TaskManager ->> RouteManager:API request to break task up into chunks
+    RouteManager ->> Pinecone: Retrieve course context
+    Pinecone -->> RouteManager: Student's course context
+    RouteManager ->> PromptChunker: Student's course context and task information
+    PromptChunker -->> RouteManager: Student's micro-tasks
+    RouteManager ->> Supabase: Store student's micro-tasks
+    Supabase -->> RouteManager: Confirmation message
+    RouteManager -->> TaskManager: Student's micro-tasks
+    TaskManager -->> Student:Student's micro-tasks
+
+
