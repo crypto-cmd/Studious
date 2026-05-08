@@ -40,6 +40,9 @@ export default function CourseFormModal({
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [fileError, setFileError] = useState<string | null>(null);
     const materialCount = course?.sources?.length ?? 0;
+    const materialName1 = course?.sources?.[0];
+    const materialName2 = course?.sources?.[1];
+    const extraMaterialName = course?.sources?.[2];
 
     if (!isOpen) {
         return null;
@@ -165,12 +168,24 @@ export default function CourseFormModal({
                     )}
 
                     {mode === 'edit' && (
-                        <div className="mb-5 flex items-center gap-2 rounded-xl border border-[#1b3f3a] bg-[#0d2522] px-3 py-2 text-sm text-gray-200">
-                            <FileText className="h-4 w-4 text-cyan-400" />
-                            <span className="font-semibold text-cyan-300">{materialCount}</span>
-                            <span>{materialCount === 1 ? 'course material' : 'course materials'} uploaded</span>
+                        <div className="mb-5 flex flex-col gap-2 rounded-xl border border-[#1b3f3a] bg-[#0d2522] px-3 py-2 text-sm text-gray-200">
+                            <span className = "flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-cyan-400" />
+                                <span className="font-semibold text-cyan-300">{materialCount}</span>
+                                <span>{materialCount === 1 ? 'course material' : 'course materials'} uploaded</span>
+                            </span>
+                            {materialName1 != null && (
+                                <span>{materialName1}</span>
+                            ) }
+                            {materialName2 != null && (
+                                <div>{materialName2}</div>
+                            )}
+                            {extraMaterialName != null && (
+                                <span className="text-cyan-300">{". . . +"}</span>
+                            )}
                         </div>
                     )}
+
 
                     {error && <p className="text-sm text-red-300">{error}</p>}
 
