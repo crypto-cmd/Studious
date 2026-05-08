@@ -1,0 +1,35 @@
+sequenceDiagram
+    title KERAS MODEL GRADE PREDICTOR
+    actor Student
+    participant Profile
+    participant Dashboard
+    participant RouteManager
+    participant RoutineManager
+    participant GradePredictor
+    participant Supabase
+
+    Student->>Profile: Enter data dictionary & course info
+    Profile ->> RouteManager: API request to store data
+    RouteManager->>Supabase: Store info
+    Supabase -->>RouteManager: Acknowledge storage
+    RouteManager -->> Profile: Confirmation message
+    Profile-->>Student: Confirmation message
+
+    rect rgb(230, 242, 255)
+        Note over GradePredictor, Supabase: Weekly Process
+        RoutineManager ->> Supabase: Retrieve Data
+        Supabase -->> RoutineManager: Student's data dictionary
+        RoutineManager ->> GradePredictor: Student's data dictionary
+        GradePredictor -->> RoutineManager: Predicted grade
+        RoutineManager ->> Supabase: Store predicted grade
+        Supabase -->>RoutineManager: Acknowledge storage
+    end
+
+    Student ->> Dashboard: Opens dashboard
+    Dashboard ->> RouteManager:API request to retrieve predicted grade
+    RouteManager ->> Supabase: Retrieve data
+    Supabase -->> RouteManager: Student's predicted grade
+    RouteManager -->> Dashboard: Student's predicted grade
+    Dashboard -->> Student: Course info along with predicted grade
+
+
