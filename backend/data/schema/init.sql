@@ -8,6 +8,9 @@ CREATE TABLE
         age INT NOT NULL,
         gender TEXT NOT NULL,
         nickname TEXT,
+        google_calendar_id TEXT,
+        google_calendar_access_token TEXT,
+        google_calendar_refresh_token TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW () -- Timestamp for when the student record was created
     );
 
@@ -49,6 +52,15 @@ CREATE TABLE
         title TEXT NOT NULL,
         instructions TEXT,
         due_date TIMESTAMPTZ
+    );
+
+CREATE TABLE
+    IF NOT EXISTS assignment_calendar_schedules (
+        assignment_id UUID PRIMARY KEY REFERENCES assignments (id) ON DELETE CASCADE,
+        schedule_status TEXT NOT NULL DEFAULT 'unscheduled',
+        scheduled_at TIMESTAMPTZ,
+        calendar_event_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
+        updated_at TIMESTAMPTZ DEFAULT NOW ()
     );
 
 CREATE TABLE

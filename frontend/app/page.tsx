@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import AppShell from "@components/AppShell";
 import BottomNav, { TabId } from "@components/BottomNav";
 import ComingSoon from "@components/ComingSoon";
@@ -15,6 +14,7 @@ import SignOutButton from "@components/SignOutButton";
 import Analytics from "@pages/Analytics";
 import ProfileButton from "@components/ProfileButton";
 import Loading from "@components/Loading";
+import { extractCalendarCredentials, getGoogleCalendarOAuthOptions } from "@lib/calendarAuth";
 
 type AuthIntent = "signin" | "signup" | null;
 
@@ -98,6 +98,8 @@ async function fetchStudentProfileWithRetry(authId: string) {
   throw lastError ?? new Error("Unable to load student profile");
 }
 
+
+
 function buildSignupDefaults(sessionUser: {
   user_metadata?: Record<string, unknown>;
   email?: string | null;
@@ -124,38 +126,38 @@ function SearchParamSync({
   onCourseParam: (courseCode: string) => void;
   onAssignmentParam: (assignmentId: string) => void;
 }) {
-  const searchParams = useSearchParams();
-
   useEffect(() => {
-    const tabFromUrl = searchParams.get("tab");
-    const courseFromUrl = searchParams.get("course") ?? "";
-    const assignmentFromUrl = searchParams.get("assignment") ?? "";
-
-    console.log("[SearchParamSync] URL params parsed", {
-      tabFromUrl,
-      courseFromUrl,
-      assignmentFromUrl,
-    });
+    const params = new URLSearchParams(window.location.search);
+    const tabFromUrl = params.get("tab");
+    const courseFromUrl = params.get("course") ?? "";
+    const assignmentFromUrl = params.get("assignment") ?? "";
 
     if (tabFromUrl === "analytics" || tabFromUrl === "home" || tabFromUrl === "tasks" || tabFromUrl === "timer" || tabFromUrl === "calendar") {
-      console.log("[SearchParamSync] Applying tab from URL", { tabFromUrl });
       onTabParam(tabFromUrl as TabId);
     }
 
-    console.log("[SearchParamSync] Applying course/assignment from URL", {
-      courseFromUrl,
-      assignmentFromUrl,
-    });
     onCourseParam(courseFromUrl);
     onAssignmentParam(assignmentFromUrl);
-  }, [onAssignmentParam, onCourseParam, onTabParam, searchParams]);
+  }, [onAssignmentParam, onCourseParam, onTabParam]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tabFromUrl = params.get("tab");
+
+      if (tabFromUrl === "analytics" || tabFromUrl === "home" || tabFromUrl === "tasks" || tabFromUrl === "timer" || tabFromUrl === "calendar") {
+        onTabParam(tabFromUrl as TabId);
+      }
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [onTabParam]);
 
   return null;
 }
 
 export default function App() {
-  const router = useRouter();
-  const pathname = usePathname();
   const authId = useSessionStore((snapshot) => snapshot.authId);
   const [isAuthInitializing, setIsAuthInitializing] = useState<boolean>(true);
   const [studentName, setStudentName] = useState<string | null>(null);
@@ -175,6 +177,7 @@ export default function App() {
   const [isProbablyInAppBrowser, setIsProbablyInAppBrowser] = useState<boolean>(false);
   const [hasCopiedDiagnostics, setHasCopiedDiagnostics] = useState<boolean>(false);
   const [isCreatingProfile, setIsCreatingProfile] = useState<boolean>(false);
+  const [syncedCalendarAuthId, setSyncedCalendarAuthId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("home");
   const [selectedCourseCode, setSelectedCourseCode] = useState<string>("");
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string>("");
@@ -318,6 +321,7 @@ export default function App() {
       sessionStoreActions.setStudentId(null);
       setIsProfileLoading(false);
       setLastProfileStatus(null);
+      setSyncedCalendarAuthId(null);
       return;
     }
 
@@ -419,6 +423,57 @@ export default function App() {
   }, [authId, authIntent]);
 
   useEffect(() => {
+    if (!authId || syncedCalendarAuthId === authId) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const syncCalendarCredentials = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (isCancelled) {
+        return;
+      }
+
+      const calendarCredentials = extractCalendarCredentials(session);
+      if (!calendarCredentials) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/student-profile?auth_id=${encodeURIComponent(authId)}`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(calendarCredentials),
+        });
+
+        if (response.ok) {
+          setSyncedCalendarAuthId(authId);
+          return;
+        }
+
+        const payload = await response.json().catch(() => null);
+        if (response.status !== 404) {
+          console.error("Calendar credential sync failed:", payload?.error ?? response.statusText);
+        }
+      } catch (error) {
+        console.error("Calendar credential sync failed:", error);
+      }
+    };
+
+    syncCalendarCredentials();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [authId, syncedCalendarAuthId]);
+
+  useEffect(() => {
     if (authIntent === "signup") {
       if (!signupName && defaultSignupProfile.name) {
         setSignupName(defaultSignupProfile.name);
@@ -444,13 +499,7 @@ export default function App() {
     const redirectTo = `${getAuthRedirectUrl(redirectPath)}?intent=${intent}`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo,
-        queryParams: {
-          access_type: "offline",
-          prompt: "consent",
-        },
-      },
+      options: getGoogleCalendarOAuthOptions(redirectTo),
     });
 
     if (error) {
@@ -502,6 +551,8 @@ export default function App() {
     setAuthError(null);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const calendarCredentials = extractCalendarCredentials(session);
       const response = await fetch("/api/student-profile", {
         method: "POST",
         headers: {
@@ -514,6 +565,7 @@ export default function App() {
           gender: signupGender,
           age,
           name: nextName,
+          ...calendarCredentials,
           onboarding: {
             course_code: nextCourseCode,
             final_exam_date: onboardingForm.finalExamDate,
@@ -559,22 +611,9 @@ export default function App() {
       nextParams.delete("assignment");
     }
 
-    const nextUrl = `${pathname}?${nextParams.toString()}`;
-
-    const docWithTransition = document as Document & {
-      startViewTransition?: (update: () => void) => void;
-    };
-
-    if (typeof docWithTransition.startViewTransition === "function") {
-      docWithTransition.startViewTransition(() => {
-        setActiveTab(tab);
-        router.replace(nextUrl);
-      });
-      return;
-    }
-
+    const nextUrl = `${window.location.pathname}?${nextParams.toString()}`;
+    window.history.replaceState(null, "", nextUrl);
     setActiveTab(tab);
-    router.replace(nextUrl);
   };
 
   const activeContent = useMemo(() => {
@@ -652,7 +691,7 @@ export default function App() {
               className="bg-white text-gray-900 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
             >
               <img src="/google-logo.svg" alt="Google" className="w-5 h-5" />
-              Sign in with Google
+              Connect Google Calendar
             </button>
             <button
               type="button"
@@ -660,7 +699,7 @@ export default function App() {
               className="bg-cyan-500 text-[#091f1c] font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-400 transition-colors"
             >
               <img src="/google-logo.svg" alt="Google" className="w-5 h-5" />
-              Sign up with Google
+              Connect Google Calendar
             </button>
           </div>
           <div className="w-full max-w-sm rounded-2xl border border-[#1b3f3a] bg-[#132e2a] p-4 text-left">
@@ -971,13 +1010,11 @@ export default function App() {
 
   return (
     <AppShell>
-      <Suspense fallback={null}>
         <SearchParamSync
           onTabParam={setActiveTab}
           onCourseParam={setSelectedCourseCode}
           onAssignmentParam={setSelectedAssignmentId}
         />
-      </Suspense>
       <div className="mb-4 flex justify-end">
         <ProfileButton studentName={studentName} />
       </div>

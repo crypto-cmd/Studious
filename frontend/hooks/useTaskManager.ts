@@ -38,6 +38,7 @@ type UseTaskManagerResult = {
     handleUpdateAssignment: (assignmentId: string, nextTitle: string, nextDueDate: string) => Promise<boolean>;
     handleDeleteAssignment: (assignmentId: string) => Promise<void>;
     handleCompleteTask: (assignmentId: string, taskId: string, alreadyCompleted: boolean) => Promise<void>;
+    refreshAssignments: () => void;
 };
 
 function normalizeCourseCodes(payload: unknown): string[] {
@@ -102,6 +103,10 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         setAssignmentTitle('');
         setAssignment('');
         setDueDate('');
+    };
+
+    const refreshAssignments = () => {
+        setReloadAssignmentsKey((prev) => prev + 1);
     };
 
     const markTaskCompletedLocally = (assignmentId: string, taskId: string) => {
@@ -400,5 +405,6 @@ export function useTaskManager(studentId: string | number | null, options?: UseT
         handleUpdateAssignment,
         handleDeleteAssignment,
         handleCompleteTask,
+        refreshAssignments,
     };
 }

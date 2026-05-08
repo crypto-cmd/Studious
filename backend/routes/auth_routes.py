@@ -67,6 +67,16 @@ def _extract_study_data(payload):
     }
 
 
+def _extract_calendar_data(payload):
+    source = payload.get("calendar") if isinstance(payload.get("calendar"), dict) else payload
+
+    return {
+        "google_calendar_id": _clean_text(source.get("google_calendar_id")) or None,
+        "google_calendar_access_token": _clean_text(source.get("google_calendar_access_token")) or None,
+        "google_calendar_refresh_token": _clean_text(source.get("google_calendar_refresh_token")) or None,
+    }
+
+
 @auth_bp.route("/student-profile", methods=["POST"])
 def create_student_profile_from_auth():
     payload = request.get_json(silent=True) or {}
@@ -78,6 +88,7 @@ def create_student_profile_from_auth():
     gender = _normalize_gender(payload.get("gender"))
     age_value = _to_int_or_none(payload.get("age"))
     onboarding = payload.get("onboarding") if isinstance(payload.get("onboarding"), dict) else {}
+    calendar_data = _extract_calendar_data(payload)
 
     if not auth_id or not name or not student_id or not gender:
         return {
@@ -108,6 +119,7 @@ def create_student_profile_from_auth():
                 "student_number": student_id,
                 "gender": gender,
                 "age": age_value,
+                **calendar_data,
             }
         )
         .execute()
@@ -170,6 +182,12 @@ def update_student_profile_by_auth_id(auth_id):
     if "nickname" in payload:
         nickname = _clean_text(payload.get("nickname"))
         update_data["nickname"] = nickname or None
+
+    calendar_data = _extract_calendar_data(payload)
+    calendar_update_data = {
+        key: value for key, value in calendar_data.items() if key in payload or (isinstance(payload.get("calendar"), dict) and key in payload["calendar"])
+    }
+    update_data.update(calendar_update_data)
 
     study_data = _extract_study_data(payload)
     has_study_update = any(payload_key in payload or (isinstance(payload.get("student_study_data"), dict) and payload_key in payload["student_study_data"]) for payload_key in ["study_hours_per_day", "use_calculated_study_hours", "sleep_hours_per_night", "exercise_hours_per_week", "mental_health_rating"])
