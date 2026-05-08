@@ -54,7 +54,7 @@ def predict_and_save_course_grade(student_id, course_code):
 
     existing = (
         db.table("courses")
-        .select("predicted_grades")
+        .select("predicted_grades, final_exam_date")
         .eq("student_id", student_id)
         .eq("code", course_code)
         .execute()
@@ -64,10 +64,32 @@ def predict_and_save_course_grade(student_id, course_code):
 
     course_row = existing.data[0]
     predicted_grades = course_row.get("predicted_grades", [])
-    predicted_grades.append({"grade": predicted_grade, "month": datetime.datetime.now().month})
+    current_month = datetime.datetime.now().month
+    existing_idx = None
+    for i, entry in enumerate(predicted_grades):
+        if entry.get("month") == current_month:
+            existing_idx = i
+            break
+
+    new_entry = {"grade": predicted_grade, "month": current_month}
+    if existing_idx is not None:
+        predicted_grades[existing_idx] = new_entry
+    else:
+        predicted_grades.append(new_entry)
 
     db.table("courses").update({"predicted_grades": predicted_grades}).eq("student_id", student_id).eq("code", course_code).execute()
     db.table("courses").update({"current_predicted_grade": predicted_grade}).eq("student_id", student_id).eq("code", course_code).execute()
+
+    if course_row.get("final_exam_date"):
+        months = {e.get("month") for e in predicted_grades if e.get("month") is not None}
+        if len(months) >= 2:
+            from computations.TrajectoryPredictor import TrajectoryPredictor
+            trajectory_predictor = TrajectoryPredictor(predicted_grades)
+            final_month = datetime.datetime.strptime(course_row["final_exam_date"], "%Y-%m-%d").month
+            predicted_final_grade = trajectory_predictor.predict_final_grade(final_month)
+            db.table("courses").update({"final_predicted_grade": predicted_final_grade}).eq("student_id", student_id).eq("code", course_code).execute()
+        else:
+            db.table("courses").update({"final_predicted_grade": predicted_grade}).eq("student_id", student_id).eq("code", course_code).execute()
 
     return {
         "student_id": student_id,

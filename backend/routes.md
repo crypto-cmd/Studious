@@ -141,6 +141,25 @@ responses:
   404:
     description: Assignment not found.
 
+### `/<assignment_id>/schedule, methods=[POST]`
+
+**Description:** Build a greedy 30-minute schedule for an assignment using KDE focus windows and Google Calendar busy time.
+
+---
+tags:
+  - Assignments
+parameters:
+  - in: path
+    name: assignment_id
+    required: true
+    schema:
+      type: string
+responses:
+  200:
+    description: Schedule plan generated successfully.
+  404:
+    description: Assignment, course, or student not found.
+
 
 ## Auth Routes
 

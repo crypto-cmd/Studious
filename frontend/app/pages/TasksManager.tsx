@@ -49,6 +49,7 @@ export default function TaskManager({ initialCourseCode, initialAssignmentId }: 
         handleUpdateAssignment,
         handleDeleteAssignment,
         handleCompleteTask,
+        refreshAssignments,
     } = useTaskManager(studentId, {
         onTaskCompleted: incrementCompleted,
         initialCourseCode,
@@ -89,6 +90,26 @@ export default function TaskManager({ initialCourseCode, initialAssignmentId }: 
         const updated = await handleUpdateAssignment(editingAssignmentId, editingAssignmentTitle, editingAssignmentDueDate);
         if (updated) {
             closeAssignmentEditModal();
+        }
+    };
+
+    const handleScheduleAssignment = async (assignmentId: string, isScheduled: boolean) => {
+        try {
+            const response = await fetch(`/api/assignments/${assignmentId}/schedule`, {
+                method: isScheduled ? 'DELETE' : 'POST',
+            });
+
+            if (!response.ok) {
+                const payload = await response.json().catch(() => ({}));
+                console.error(`${isScheduled ? 'Unschedule' : 'Schedule'} failed:`, payload?.error ?? response.statusText);
+                return;
+            }
+
+            const schedulePlan = await response.json();
+            console.log(isScheduled ? 'Assignment unscheduled:' : 'Schedule plan created:', schedulePlan);
+            refreshAssignments();
+        } catch (error) {
+            console.error(isScheduled ? 'Error unscheduling assignment:' : 'Error scheduling assignment:', error);
         }
     };
 
@@ -141,6 +162,7 @@ export default function TaskManager({ initialCourseCode, initialAssignmentId }: 
                 onSelectAssignment={setSelectedAssignmentId}
                 onEditAssignment={openAssignmentEditModal}
                 onDeleteAssignment={(assignmentId) => void handleDeleteAssignment(assignmentId)}
+                onScheduleAssignment={handleScheduleAssignment}
                 deletingAssignmentId={deletingAssignmentId}
                 isLoadingAssignments={isLoadingAssignments}
                 selectedCourse={selectedCourse}

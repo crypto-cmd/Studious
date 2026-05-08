@@ -12,8 +12,9 @@ type CourseFormModalProps = {
         code: string;
         title: string;
         finalExamDate: string;
+        attendancePercentage: string;
     };
-    onFormChange: (field: 'code' | 'title' | 'finalExamDate', value: string) => void;
+    onFormChange: (field: 'code' | 'title' | 'finalExamDate' | 'attendancePercentage', value: string) => void;
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     onClose: () => void;
     onUploadMaterial?: (file: File) => Promise<void>;
@@ -141,6 +142,23 @@ export default function CourseFormModal({
                             disabled={isLoading}
                         />
                     </label>
+
+                    {mode === 'edit' && (
+                        <label className="flex flex-col gap-1.5">
+                            <span className="text-sm font-semibold text-gray-300">Attendance (%)</span>
+                            <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="1"
+                                value={formState.attendancePercentage}
+                                onChange={(e) => onFormChange('attendancePercentage', e.target.value)}
+                                placeholder="95"
+                                className="rounded-lg border border-[#1b3f3a] bg-[#091f1c] px-3 py-2 text-white placeholder-gray-500 focus:border-cyan-400 focus:outline-none"
+                                disabled={isLoading}
+                            />
+                        </label>
+                    )}
 
                     {mode === 'edit' && onUploadMaterial && (
                         <div className="rounded-xl border border-[#1b3f3a] bg-[#0d2522] p-3">

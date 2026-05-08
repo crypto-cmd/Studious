@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 
 from data.db import db
+from routes.sync_routes import mark_sync_stale
 
 auth_bp = Blueprint("auth_bp", __name__)
 
@@ -67,6 +68,16 @@ def _extract_study_data(payload):
     }
 
 
+def _extract_calendar_data(payload):
+    source = payload.get("calendar") if isinstance(payload.get("calendar"), dict) else payload
+
+    return {
+        "google_calendar_id": _clean_text(source.get("google_calendar_id")) or None,
+        "google_calendar_access_token": _clean_text(source.get("google_calendar_access_token")) or None,
+        "google_calendar_refresh_token": _clean_text(source.get("google_calendar_refresh_token")) or None,
+    }
+
+
 @auth_bp.route("/student-profile", methods=["POST"])
 def create_student_profile_from_auth():
     payload = request.get_json(silent=True) or {}
@@ -78,6 +89,7 @@ def create_student_profile_from_auth():
     gender = _normalize_gender(payload.get("gender"))
     age_value = _to_int_or_none(payload.get("age"))
     onboarding = payload.get("onboarding") if isinstance(payload.get("onboarding"), dict) else {}
+    calendar_data = _extract_calendar_data(payload)
 
     if not auth_id or not name or not student_id or not gender:
         return {
@@ -108,6 +120,7 @@ def create_student_profile_from_auth():
                 "student_number": student_id,
                 "gender": gender,
                 "age": age_value,
+                **calendar_data,
             }
         )
         .execute()
@@ -171,6 +184,12 @@ def update_student_profile_by_auth_id(auth_id):
         nickname = _clean_text(payload.get("nickname"))
         update_data["nickname"] = nickname or None
 
+    calendar_data = _extract_calendar_data(payload)
+    calendar_update_data = {
+        key: value for key, value in calendar_data.items() if key in payload or (isinstance(payload.get("calendar"), dict) and key in payload["calendar"])
+    }
+    update_data.update(calendar_update_data)
+
     study_data = _extract_study_data(payload)
     has_study_update = any(payload_key in payload or (isinstance(payload.get("student_study_data"), dict) and payload_key in payload["student_study_data"]) for payload_key in ["study_hours_per_day", "use_calculated_study_hours", "sleep_hours_per_night", "exercise_hours_per_week", "mental_health_rating"])
 
@@ -181,6 +200,12 @@ def update_student_profile_by_auth_id(auth_id):
     existing_row = existing.data[0]
     study_existing = db.table("student_study_data").select("*").eq("student_id", existing_row.get("id")).execute()
     study_row = study_existing.data[0] if study_existing.data else None
+
+    grade_input_fields = {"age", "gender", "study_hours_per_day", "sleep_hours_per_night", "exercise_hours_per_week", "mental_health_rating", "use_calculated_study_hours"}
+    payload_keys = set(payload.keys())
+    if isinstance(payload.get("student_study_data"), dict):
+        payload_keys.update(payload["student_study_data"].keys())
+    has_grade_input_change = bool(grade_input_fields & payload_keys)
 
     if not update_data and not has_study_update:
         return {"error": "No valid fields provided to update"}, 400
@@ -230,5 +255,8 @@ def update_student_profile_by_auth_id(auth_id):
 
     refreshed_study = db.table("student_study_data").select("*").eq("student_id", existing_row.get("id")).execute()
     current_study = refreshed_study.data[0] if refreshed_study.data else study_row
+
+    if has_grade_input_change:
+        mark_sync_stale(existing_row.get("id"))
 
     return _student_response(existing_row, current_study), 200

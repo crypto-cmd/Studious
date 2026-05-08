@@ -9,6 +9,7 @@ import { supabase } from "@lib/supabase";
 import { sessionStoreActions, useSessionStore } from "@lib/sessionStore";
 
 type ProfilePayload = {
+    student_id?: string;
     name?: string;
     nickname?: string;
     study_hours_per_day?: number | string | null;
@@ -191,6 +192,18 @@ export default function ProfilePage() {
             setExerciseHoursPerWeek(toInputValue(payload.exercise_hours_per_week ?? nextExerciseHoursPerWeek));
             setMentalHealthRating(toInputValue(payload.mental_health_rating ?? nextMentalHealthRating));
             setSuccessMessage("Profile updated.");
+
+            const rawStudentId = payload.student_id ?? null;
+            const payloadCalculated = payload.calculated_study_hours_per_day;
+            if (
+                useCalculatedStudyHours &&
+                rawStudentId &&
+                (payloadCalculated === null || payloadCalculated === undefined || payloadCalculated === "")
+            ) {
+                fetch(`/api/sync?student_id=${encodeURIComponent(rawStudentId)}`, {
+                    method: 'POST',
+                }).catch(() => {});
+            }
         } catch (error: unknown) {
             setErrorMessage(error instanceof Error ? error.message : "Unable to update profile");
         } finally {
@@ -257,15 +270,15 @@ export default function ProfilePage() {
                                     <p className="text-sm font-semibold text-white">Study hours source</p>
                                     <p className="text-xs text-gray-400">Choose whether predictions use your manual value or the calculated one.</p>
                                 </div>
-                                <label className="flex items-center gap-2 text-sm text-gray-200">
-                                    <input
-                                        type="checkbox"
-                                        checked={useCalculatedStudyHours}
-                                        onChange={(event) => setUseCalculatedStudyHours(event.target.checked)}
-                                        className="h-4 w-4 rounded border-[#1b3f3a] bg-[#132e2a] text-cyan-400 focus:ring-cyan-400"
-                                    />
-                                    Use calculated
-                                </label>
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={useCalculatedStudyHours}
+                                    onClick={() => setUseCalculatedStudyHours(!useCalculatedStudyHours)}
+                                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-2 focus:ring-offset-[#0a1816] ${useCalculatedStudyHours ? "bg-cyan-500" : "bg-[#1b3f3a]"}`}
+                                >
+                                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${useCalculatedStudyHours ? "translate-x-5" : "translate-x-0"}`} />
+                                </button>
                             </div>
                         </div>
 

@@ -21,12 +21,14 @@ type CourseFormState = {
   code: string;
   title: string;
   finalExamDate: string;
+  attendancePercentage: string;
 };
 
 const EMPTY_FORM: CourseFormState = {
   code: '',
   title: '',
   finalExamDate: '',
+  attendancePercentage: '',
 };
 
 type HomeDashboardProps = {
@@ -253,6 +255,7 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
       code: course.code,
       title: course.title ?? '',
       finalExamDate: course.finalExamDate ?? '',
+      attendancePercentage: course.attendancePercentage != null ? String(course.attendancePercentage) : '',
     });
     setFormError(null);
     setUploadStatusMessage(null);
@@ -339,10 +342,12 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
           return;
         }
 
+        const attendanceValue = formState.attendancePercentage.trim();
         await updateCourse(editingCourseCode, {
           code: courseCode,
           title: formState.title.trim() || null,
           finalExamDate: formState.finalExamDate,
+          attendancePercentage: attendanceValue ? Number(attendanceValue) : undefined,
         });
       }
 

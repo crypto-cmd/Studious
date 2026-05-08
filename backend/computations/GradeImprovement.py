@@ -127,5 +127,9 @@ class GradeImprovement:
             profile["exercise_hours_per_week"] = self.student_profile["exercise_hours_per_week"]
         if abs(best_genome[3] - self.student_profile["study_hours_per_day"]) < 0.15:
             profile["study_hours_per_day"] = self.student_profile["study_hours_per_day"]
-        
-        return self.student_profile, self.current_grade, profile, best_grade
+
+        improved_grade = self.gradepredictor.predict_grade(profile)
+        if round(improved_grade - self.current_grade, 1) < 0.1:
+            return self.student_profile, self.current_grade, self.student_profile, self.current_grade
+
+        return self.student_profile, self.current_grade, profile, improved_grade

@@ -7,6 +7,8 @@ import AppShell from "@components/AppShell";
 import Loading from "@components/Loading";
 import { supabase } from "@lib/supabase";
 import { sessionStoreActions, useSessionStore } from "@lib/sessionStore";
+import { extractCalendarCredentials, getGoogleCalendarOAuthOptions } from "@lib/calendarAuth";
+import { getAuthRedirectUrl } from "@lib/authRedirect";
 
 type OnboardingStep = 1 | 2;
 
@@ -56,6 +58,7 @@ export default function OnboardingPage() {
     const [isCheckingProfile, setIsCheckingProfile] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [calendarConnected, setCalendarConnected] = useState<boolean>(false);
 
     const handleBackToSignIn = () => {
         window.sessionStorage.setItem("auth_intent", "signin");
@@ -80,6 +83,8 @@ export default function OnboardingPage() {
             if (session?.user) {
                 const defaults = buildSignupDefaults(session.user);
                 setForm((current) => ({ ...current, ...defaults }));
+                const creds = extractCalendarCredentials(session);
+                setCalendarConnected(Boolean(creds && creds.google_calendar_access_token));
             }
         });
 
@@ -182,6 +187,9 @@ export default function OnboardingPage() {
         setErrorMessage(null);
 
         try {
+            const { data: { session } } = await supabase.auth.getSession();
+            const calendarCredentials = extractCalendarCredentials(session);
+
             const response = await fetch("/api/student-profile", {
                 method: "POST",
                 headers: {
@@ -194,6 +202,7 @@ export default function OnboardingPage() {
                     student_id: form.studentId.trim(),
                     gender: form.gender.trim(),
                     age: toNumberOrNull(form.age),
+                    ...calendarCredentials,
                     onboarding: {
                         mental_health_rating: toNumberOrNull(form.mentalHealthRating),
                         exercise_hours_per_week: toNumberOrNull(form.exerciseFrequency),
@@ -213,6 +222,23 @@ export default function OnboardingPage() {
             window.location.replace("/");
         } catch (error: unknown) {
             setErrorMessage(error instanceof Error ? error.message : "Unable to create your profile right now.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const connectCalendar = async () => {
+        try {
+            setIsSubmitting(true);
+            const redirectTo = getAuthRedirectUrl('/onboarding');
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: getGoogleCalendarOAuthOptions(redirectTo),
+            });
+
+            if (error) {
+                setErrorMessage(error.message);
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -420,6 +446,17 @@ export default function OnboardingPage() {
                             </button>
                         )}
                     </div>
+                    {!calendarConnected && (
+                        <div className="mt-4 flex items-center justify-center">
+                            <button
+                                type="button"
+                                onClick={connectCalendar}
+                                className="rounded-xl bg-white text-gray-900 px-4 py-2 font-semibold hover:bg-gray-100"
+                            >
+                                {isSubmitting ? "Connecting..." : "Connect Google Calendar"}
+                            </button>
+                        </div>
+                    )}
                 </form>
             </section>
 
