@@ -18,6 +18,7 @@ export type Course = {
     finalExamDate: string | null;
     predictedGrades: CoursePrediction[];
     sources: string[];
+    attendancePercentage: number | null;
 };
 
 type CourseRow = {
@@ -33,6 +34,7 @@ type CourseRow = {
         grade?: string | number | null;
         month?: string | number | null;
     }>;
+    attendance_percentage?: number | string | null;
 };
 
 type UseCoursesResult = {
@@ -51,6 +53,7 @@ export type CourseMutationPayload = {
     code: string;
     title?: string | null;
     finalExamDate?: string;
+    attendancePercentage?: number;
 };
 
 function parseCalendarDate(value: string): Date | null {
@@ -233,6 +236,7 @@ function normalizeCourses(payload: unknown): Course[] {
                 : null,
             finalExamDate: typeof courseRow.final_exam_date === 'string' ? courseRow.final_exam_date : null,
             predictedGrades,
+            attendancePercentage: courseRow.attendance_percentage == null ? null : Number(courseRow.attendance_percentage),
             sources: Array.isArray(courseRow.sources)
                 ? courseRow.sources.filter((source): source is string => typeof source === 'string' && source.trim().length > 0)
                 : [],
@@ -331,6 +335,7 @@ export function useCourses(studentId: string | number | null): UseCoursesResult 
                     ...(payload.code !== undefined ? { code: payload.code } : {}),
                     ...(payload.title !== undefined ? { title: payload.title } : {}),
                     ...(payload.finalExamDate !== undefined ? { final_exam_date: payload.finalExamDate || null } : {}),
+                    ...(payload.attendancePercentage !== undefined ? { attendance_percentage: payload.attendancePercentage } : {}),
                 },
                 { cache: 'no-store' },
                 'Unable to update course'

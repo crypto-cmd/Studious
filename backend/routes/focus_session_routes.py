@@ -3,6 +3,7 @@ import math
 from flask import Blueprint, request
 from data.db import db
 from routines.focus_kde import run_kde_for_student, format_peak_windows
+from routes.sync_routes import mark_sync_stale
 focus_session_bp = Blueprint("focus_session_bp", __name__)
 
 
@@ -107,6 +108,7 @@ def create_focus_session(student_id):
             return {"error": "Unable to create focus session",
                     "data": data}, 500
 
+        mark_sync_stale(student_id)
         return response.data[0], 201
     except Exception:
         return {"error": "Unable to create focus session"}, 500

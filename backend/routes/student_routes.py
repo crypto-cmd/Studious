@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 
 from data.db import db
+from routes.sync_routes import mark_sync_stale
 
 student_bp = Blueprint("student_bp", __name__)
 
@@ -70,6 +71,8 @@ def update_student_profile(student_id):
         update_data["name"] = name
 
 
+    has_grade_input_change = "gender" in payload or "age" in payload
+
     if not update_data:
         return {"error": "No valid fields provided to update"}, 400
 
@@ -86,6 +89,9 @@ def update_student_profile(student_id):
 
     if not updated.data:
         return {"error": "Unable to update student profile"}, 500
+
+    if has_grade_input_change:
+        mark_sync_stale(student_id)
 
     return _student_response(updated.data[0]), 200
 
@@ -154,6 +160,7 @@ def add_course(student_id):
         "code": code,
         "title": title,
         "final_exam_date": final_exam_date,
+        "attendance_percentage": _to_number_or_none(payload.get("attendance_percentage")) or None,
         "current_predicted_grade": _to_number_or_none(payload.get("current_predicted_grade")),
         "final_predicted_grade": _to_number_or_none(payload.get("final_predicted_grade")),
         "predicted_grades": payload.get("predicted_grades") if isinstance(payload.get("predicted_grades"), list) else [],
@@ -218,6 +225,17 @@ def update_course(student_id, course_code):
     if "final_predicted_grade" in payload:
         update_data["final_predicted_grade"] = _to_number_or_none(payload.get("final_predicted_grade"))
 
+    has_grade_input_change = False
+
+    if "attendance_percentage" in payload:
+        attendance_value = _to_number_or_none(payload.get("attendance_percentage"))
+        if attendance_value is None:
+            return {"error": "attendance_percentage must be a number"}, 400
+        if attendance_value < 0 or attendance_value > 100:
+            return {"error": "attendance_percentage must be between 0 and 100"}, 400
+        update_data["attendance_percentage"] = attendance_value
+        has_grade_input_change = True
+
     if "predicted_grades" in payload:
         predicted_grades = payload.get("predicted_grades")
         if predicted_grades is not None and not isinstance(predicted_grades, list):
@@ -237,6 +255,9 @@ def update_course(student_id, course_code):
 
     if not updated.data:
         return {"error": "Unable to update course"}, 500
+
+    if has_grade_input_change:
+        mark_sync_stale(student_id)
 
     return updated.data[0], 200
 

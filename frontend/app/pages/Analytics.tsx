@@ -159,6 +159,7 @@ export default function AnalyticsDashboard({ selectedCourseCode: initialCourseCo
     const studentId = useSessionStore((snapshot) => snapshot.studentId);
     const { courses, isLoading, error } = useCourses(studentId);
     const [selectedCourseCode, setSelectedCourseCode] = useState(initialCourseCode);
+    const [isSeedingPrediction, setIsSeedingPrediction] = useState(false);
 
     useEffect(() => {
         console.log('[Analytics] URL-provided course changed', {
@@ -208,6 +209,30 @@ export default function AnalyticsDashboard({ selectedCourseCode: initialCourseCo
             return courses[0]?.code ?? '';
         });
     }, [courses, initialCourseCode]);
+
+    useEffect(() => {
+        if (!studentId || !selectedCourse || isSeedingPrediction) {
+            return;
+        }
+
+        const hasPrediction = selectedCourse.currentPredictedGrade != null
+            || (selectedCourse.predictedGrades?.length ?? 0) > 0;
+
+        if (hasPrediction) {
+            return;
+        }
+
+        setIsSeedingPrediction(true);
+
+        const params = new URLSearchParams({
+            student_id: String(studentId),
+            course_code: selectedCourse.code,
+        });
+
+        fetch(`/api/predict-grade?${params.toString()}`, { method: 'POST' })
+            .catch(() => {})
+            .finally(() => setIsSeedingPrediction(false));
+    }, [studentId, selectedCourse, isSeedingPrediction]);
 
     const insightCards = useMemo(
         () => buildInsightCards(selectedCourse, improvementData),

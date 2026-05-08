@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import AppShell from "@components/AppShell";
 import BottomNav, { TabId } from "@components/BottomNav";
 import ComingSoon from "@components/ComingSoon";
@@ -126,11 +127,12 @@ function SearchParamSync({
   onCourseParam: (courseCode: string) => void;
   onAssignmentParam: (assignmentId: string) => void;
 }) {
+  const searchParams = useSearchParams();
+
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const tabFromUrl = params.get("tab");
-    const courseFromUrl = params.get("course") ?? "";
-    const assignmentFromUrl = params.get("assignment") ?? "";
+    const tabFromUrl = searchParams.get("tab");
+    const courseFromUrl = searchParams.get("course") ?? "";
+    const assignmentFromUrl = searchParams.get("assignment") ?? "";
 
     if (tabFromUrl === "analytics" || tabFromUrl === "home" || tabFromUrl === "tasks" || tabFromUrl === "timer" || tabFromUrl === "calendar") {
       onTabParam(tabFromUrl as TabId);
@@ -138,7 +140,7 @@ function SearchParamSync({
 
     onCourseParam(courseFromUrl);
     onAssignmentParam(assignmentFromUrl);
-  }, [onAssignmentParam, onCourseParam, onTabParam]);
+  }, [onAssignmentParam, onCourseParam, onTabParam, searchParams]);
 
   useEffect(() => {
     const onPopState = () => {
@@ -472,6 +474,40 @@ export default function App() {
       isCancelled = true;
     };
   }, [authId, syncedCalendarAuthId]);
+
+  const registeredStudentId = useSessionStore((snapshot) => snapshot.studentId);
+
+  useEffect(() => {
+    if (!studentName || !registeredStudentId) {
+      return;
+    }
+
+    let isCancelled = false;
+
+    const runWeeklySync = async () => {
+      try {
+        const statusResponse = await fetch(`/api/sync?student_id=${encodeURIComponent(String(registeredStudentId))}`);
+        const statusPayload = await statusResponse.json().catch(() => null);
+
+        if (isCancelled) {
+          return;
+        }
+
+        if (statusPayload?.stale) {
+          await fetch(`/api/sync?student_id=${encodeURIComponent(String(registeredStudentId))}`, {
+            method: 'POST',
+          });
+        }
+      } catch {
+      }
+    };
+
+    runWeeklySync();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [studentName, registeredStudentId]);
 
   useEffect(() => {
     if (authIntent === "signup") {
@@ -1010,11 +1046,13 @@ export default function App() {
 
   return (
     <AppShell>
+      <Suspense fallback={null}>
         <SearchParamSync
           onTabParam={setActiveTab}
           onCourseParam={setSelectedCourseCode}
           onAssignmentParam={setSelectedAssignmentId}
         />
+      </Suspense>
       <div className="mb-4 flex justify-end">
         <ProfileButton studentName={studentName} />
       </div>

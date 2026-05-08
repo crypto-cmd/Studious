@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 
 from data.db import db
+from routes.sync_routes import mark_sync_stale
 
 auth_bp = Blueprint("auth_bp", __name__)
 
@@ -200,6 +201,12 @@ def update_student_profile_by_auth_id(auth_id):
     study_existing = db.table("student_study_data").select("*").eq("student_id", existing_row.get("id")).execute()
     study_row = study_existing.data[0] if study_existing.data else None
 
+    grade_input_fields = {"age", "gender", "study_hours_per_day", "sleep_hours_per_night", "exercise_hours_per_week", "mental_health_rating", "use_calculated_study_hours"}
+    payload_keys = set(payload.keys())
+    if isinstance(payload.get("student_study_data"), dict):
+        payload_keys.update(payload["student_study_data"].keys())
+    has_grade_input_change = bool(grade_input_fields & payload_keys)
+
     if not update_data and not has_study_update:
         return {"error": "No valid fields provided to update"}, 400
 
@@ -248,5 +255,8 @@ def update_student_profile_by_auth_id(auth_id):
 
     refreshed_study = db.table("student_study_data").select("*").eq("student_id", existing_row.get("id")).execute()
     current_study = refreshed_study.data[0] if refreshed_study.data else study_row
+
+    if has_grade_input_change:
+        mark_sync_stale(existing_row.get("id"))
 
     return _student_response(existing_row, current_study), 200
