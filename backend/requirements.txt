@@ -62,6 +62,6 @@ werkzeug==3.1.8
 yarl==1.23.0
 zstandard==0.25.0
 gunicorn==21.2.0
-pinecone==5.0.1
+pinecone==9.0.0
 pyPDF2
 more-itertools
