@@ -28,9 +28,7 @@ def upsert_chunks(chunks, class_id, user_id, file_name):
 
 
 def query_chunks(query, user_id, class_id):
-    results = index.search(
-        namespace=f"{user_id}--{class_id}",
-        query={
+    results = index.search(f"{user_id}--{class_id}",{
             "inputs": {"text": query},
             "top_k": 2
         }
