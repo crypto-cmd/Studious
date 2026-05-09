@@ -727,7 +727,7 @@ export default function App() {
               className="bg-white text-gray-900 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-100 transition-colors"
             >
               <img src="/google-logo.svg" alt="Google" className="w-5 h-5" />
-              Connect Google Calendar
+              Sign In
             </button>
             <button
               type="button"
@@ -735,7 +735,7 @@ export default function App() {
               className="bg-cyan-500 text-[#091f1c] font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 hover:bg-cyan-400 transition-colors"
             >
               <img src="/google-logo.svg" alt="Google" className="w-5 h-5" />
-              Connect Google Calendar
+              Sign Up
             </button>
           </div>
           <div className="w-full max-w-sm rounded-2xl border border-[#1b3f3a] bg-[#132e2a] p-4 text-left">
