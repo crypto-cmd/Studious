@@ -1,0 +1,22 @@
+sequenceDiagram
+    title Greedy Scheduler
+    actor Student
+    participant TaskManager
+    participant RouteManager
+    participant TaskScheduler
+    participant CalenderApi
+    participant Supabase
+
+    Student ->> TaskManager: Click Schedule on a task or assignment
+    TaskManager ->> RouteManager: API request to run task scheduler
+    RouteManager ->> Supabase: Retrieve Focus slots and tasks
+    Supabase -->> RouteManager: Focus slots and tasks
+    RouteManager ->> CalenderApi: Retrieve free or open time slots
+    CalenderApi -->> RouteManager: Free or open time slots
+    RouteManager ->> TaskScheduler: Student's focus slots, tasks and free or open time slots 
+    TaskScheduler ->> CalenderApi: Best task or assignment slotting
+    CalenderApi -->> TaskScheduler: Task or assignment slotted succesfully
+    TaskScheduler -->> RouteManager: Confirmation message
+    RouteManager -->> TaskManager: Confirmation message
+    TaskManager -->> Student: Schedule button updates and now shows Unschedule
+    

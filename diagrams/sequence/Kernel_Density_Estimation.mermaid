@@ -1,0 +1,21 @@
+sequenceDiagram
+    title Kernel Denstiy Estimation
+    actor Student
+    participant FocusTimer
+    participant RouteManager
+    participant KernelDensityEstimation
+    participant Supabase
+
+    Student ->> FocusTimer: Recorded study times and focus scores
+    FocusTimer ->> RouteManager: API request to store study times and focus scores
+    RouteManager ->> Supabase: Store study times and focus scores
+    Supabase -->> RouteManager: Confirmation message
+    rect rgb(230, 242, 255)
+        Note over RouteManager, Supabase: Weekly Process
+        RouteManager ->> KernelDensityEstimation: Student's study times and focus scores
+        KernelDensityEstimation -->> RouteManager: Best study times or focus slots
+        RouteManager ->> Supabase: Best study times or focus slot
+        Supabase -->> RouteManager: Confirmation message
+    end
+    RouteManager -->> FocusTimer: Confirmation message
+    FocusTimer -->> Student: Confirmation message
