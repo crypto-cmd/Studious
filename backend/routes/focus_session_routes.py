@@ -36,6 +36,7 @@ def list_focus_sessions(student_id):
             db.table("focus_sessions")
             .select("*")
             .eq("student_id", student_id)
+            .order("session_start", desc=True)
             .limit(10)
             .execute()
         )

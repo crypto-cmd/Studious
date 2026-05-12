@@ -47,6 +47,7 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
     addCourse,
     updateCourse,
     deleteCourse,
+    refresh: refreshCourses,
   } = useCourses(studentId);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [formMode, setFormMode] = useState<CourseFormMode>('add');
@@ -313,6 +314,7 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
       }
 
       setUploadStatusMessage('Course PDF uploaded successfully.');
+      await refreshCourses();
     } finally {
       setIsUploadingMaterial(false);
     }
