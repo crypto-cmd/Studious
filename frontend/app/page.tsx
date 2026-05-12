@@ -177,7 +177,6 @@ export default function App() {
   const [lastProfileStatus, setLastProfileStatus] = useState<number | null>(null);
   const [hasAuthHashTokens, setHasAuthHashTokens] = useState<boolean>(false);
   const [isProbablyInAppBrowser, setIsProbablyInAppBrowser] = useState<boolean>(false);
-  const [hasCopiedDiagnostics, setHasCopiedDiagnostics] = useState<boolean>(false);
   const [isCreatingProfile, setIsCreatingProfile] = useState<boolean>(false);
   const [syncedCalendarAuthId, setSyncedCalendarAuthId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>("home");
@@ -673,29 +672,6 @@ export default function App() {
     }
   }, [activeTab, selectedAssignmentId, selectedCourseCode, studentName]);
 
-  const copyDiagnostics = async () => {
-    const diagnostics = {
-      timestamp: new Date().toISOString(),
-      intent: authIntent,
-      authIdPresent: Boolean(authId),
-      isAuthInitializing,
-      isProfileLoading,
-      lastAuthEvent,
-      lastProfileStatus,
-      hasAuthHashTokens,
-      isProbablyInAppBrowser,
-      userAgent: window.navigator.userAgent,
-    };
-
-    try {
-      await navigator.clipboard.writeText(JSON.stringify(diagnostics, null, 2));
-      setHasCopiedDiagnostics(true);
-      setTimeout(() => setHasCopiedDiagnostics(false), 2000);
-    } catch {
-      setAuthError("Could not copy diagnostics. You can still screenshot this section.");
-    }
-  };
-
   if (isAuthInitializing) {
     return (
       <AppShell>
@@ -731,24 +707,6 @@ export default function App() {
             >
               <img src="/google-logo.svg" alt="Google" className="w-5 h-5" />
               Sign Up
-            </button>
-          </div>
-          <div className="w-full max-w-sm rounded-2xl border border-[#1b3f3a] bg-[#132e2a] p-4 text-left">
-            <p className="text-xs font-semibold text-cyan-300">Phone sign-in diagnostics</p>
-            <p className="text-xs text-gray-300 mt-2">Last auth event: {lastAuthEvent}</p>
-            <p className="text-xs text-gray-300">Last profile status: {lastProfileStatus ?? "none"}</p>
-            <p className="text-xs text-gray-300">Auth hash tokens seen: {hasAuthHashTokens ? "yes" : "no"}</p>
-            {isProbablyInAppBrowser && (
-              <p className="text-xs text-amber-300 mt-2">
-                In-app browser detected. Open this page in Safari or Chrome to avoid OAuth cookie/session restrictions.
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={copyDiagnostics}
-              className="mt-3 w-full border border-[#24524b] text-gray-100 font-semibold py-2 rounded-xl hover:bg-[#173732] transition-colors"
-            >
-              {hasCopiedDiagnostics ? "Diagnostics copied" : "Copy diagnostics"}
             </button>
           </div>
           {authError && <p className="text-red-300 text-sm max-w-xs">{authError}</p>}
