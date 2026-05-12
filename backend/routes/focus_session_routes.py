@@ -80,10 +80,13 @@ def create_focus_session(student_id):
     theta_end = _theta_from_datetime(session_end)
 
     # Calculate quality score based on focus_score and productivity_score and the mental health of the student (for simplicity, we'll just average them here, but this could be a more complex calculation)
-    mental_health_rating = db.table("student_study_data").select("mental_health_rating").eq("student_id", student_id).single().execute().data
-    mental_health_rating = mental_health_rating["mental_health_rating"] if mental_health_rating else 5  # Default to neutral mental health if not found
+    try:
+        mental_health_result = db.table("student_study_data").select("mental_health_rating").eq("student_id", student_id).single().execute()
+        mental_health_rating = mental_health_result.data["mental_health_rating"] if mental_health_result.data else 5
+    except Exception:
+        mental_health_rating = 5  # Default to neutral mental health if not found
 
-    quality_score = ((focus_score - 1) / 4.0 + (productivity_score - 1) / 2.0 + (mental_health_rating - 1) / 4.0) / 3.0
+    quality_score = ((focus_score - 1) / 4.0 + (productivity_score - 1) / 2.0 + (mental_health_rating - 1) / 9.0) / 3.0
 
     print(f"Calculating quality score: {quality_score}")
     data = {
