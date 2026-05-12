@@ -1,3 +1,13 @@
+INSERT INTO student_study_data (student_id, study_hours_per_day, sleep_hours_per_night, exercise_hours_per_week, mental_health_rating)
+VALUES (
+    '9491b299-0ee0-46ff-8d7e-78bddaf8808d',
+    6.5,
+    7.5,
+    3.0,
+    8
+)
+ON CONFLICT (student_id) DO NOTHING;
+
 INSERT INTO focus_sessions (student_id, session_start, session_end, theta_start, theta_end, focus_score, productivity_score, mental_health_rating, quality_score) VALUES
 -- ===== LAST WEEK =====
 -- Monday (May 4)
@@ -121,3 +131,31 @@ INSERT INTO focus_sessions (student_id, session_start, session_end, theta_start,
     ((0.0 * 86400) + (15.0 * 3600) + (0.0 * 60)) * 6.28318530718 / 604800.0,
     5, 3, 9, 0.9
 );
+
+-- After inserting focus sessions, recalculate peak focus windows by hitting:
+--   GET /api/focus-sessions/<student_id>/peaks
+-- This runs KDE on all sessions and stores the results in student_peak_focus_windows.
+
+UPDATE courses SET
+    current_predicted_grade = 76,
+    final_predicted_grade = 0,
+    attendance_percentage = 92,
+    predicted_grades = '[
+        {"month": 1, "grade": 72},
+        {"month": 2, "grade": 74},
+        {"month": 3, "grade": 71},
+        {"month": 4, "grade": 76}
+    ]'::jsonb
+WHERE student_id = '9491b299-0ee0-46ff-8d7e-78bddaf8808d' AND code = 'COMP2171';
+
+UPDATE courses SET
+    current_predicted_grade = 64,
+    final_predicted_grade = 0,
+    attendance_percentage = 78,
+    predicted_grades = '[
+        {"month": 1, "grade": 58},
+        {"month": 2, "grade": 59},
+        {"month": 3, "grade": 60},
+        {"month": 4, "grade": 64}
+    ]'::jsonb
+WHERE student_id = '9491b299-0ee0-46ff-8d7e-78bddaf8808d' AND code = 'ELET3460';
