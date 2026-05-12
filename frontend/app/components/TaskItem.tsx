@@ -4,7 +4,6 @@ type TaskItemProps = {
     task: {
         id: string;
         description: string;
-        xp: number;
         completed: boolean;
     };
     isCompleting: boolean;
@@ -37,9 +36,6 @@ export default function TaskItem({ task, isCompleting, onClick }: TaskItemProps)
                 )}
             </div>
 
-            <div className="flex-shrink-0 bg-[#091f1c] px-2 py-1 rounded-md border border-[#1b3f3a]">
-                <span className="text-xs text-cyan-400 font-bold">+{task.xp} XP</span>
-            </div>
         </div>
     );
 }

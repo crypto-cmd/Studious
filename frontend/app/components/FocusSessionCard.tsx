@@ -4,25 +4,21 @@ type FocusSessionCardProps = {
     session: FocusSession;
 };
 
-function parseTimeToSeconds(value: string) {
-    const [hoursRaw, minutesRaw, secondsRaw] = value.split(':');
-    const hours = Number(hoursRaw);
-    const minutes = Number(minutesRaw);
-    const seconds = Number(secondsRaw);
+const FOCUS_LABELS = [
+    null,
+    { emoji: '😫', label: 'Very low' },
+    { emoji: '🙁', label: 'Low' },
+    { emoji: '😐', label: 'Okay' },
+    { emoji: '🙂', label: 'Good' },
+    { emoji: '🤩', label: 'Great' },
+] as const;
 
-    if (
-        !Number.isFinite(hours) ||
-        !Number.isFinite(minutes) ||
-        !Number.isFinite(seconds) ||
-        hours < 0 ||
-        minutes < 0 ||
-        seconds < 0
-    ) {
-        return null;
-    }
-
-    return hours * 3600 + minutes * 60 + seconds;
-}
+const PRODUCTIVITY_LABELS = [
+    null,
+    { emoji: '😫', label: 'Not' },
+    { emoji: '😐', label: 'Somewhat' },
+    { emoji: '🤩', label: 'Very' },
+] as const;
 
 function formatDuration(seconds: number) {
     if (seconds < 60) {
@@ -49,39 +45,57 @@ function getSessionDurationSeconds(session: FocusSession) {
         }
     }
 
-    const startSeconds = parseTimeToSeconds(session.sessionStart);
-    const endSeconds = parseTimeToSeconds(session.sessionEnd);
-
-    if (startSeconds == null || endSeconds == null) {
-        return 0;
-    }
-
-    if (endSeconds >= startSeconds) {
-        return endSeconds - startSeconds;
-    }
-
-    return 24 * 3600 - startSeconds + endSeconds;
+    return 0;
 }
 
-function formatSessionDate(value: string) {
+function formatTime(value: string) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
-        return 'Unknown date';
+        return null;
     }
 
-    return date.toLocaleString();
+    return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDate(value: string) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 }
 
 export default function FocusSessionCard({ session }: FocusSessionCardProps) {
-    const sessionDate = session.sessionStart || session.createdAt;
+    const duration = getSessionDurationSeconds(session);
+    const focus = session.focusScore != null ? FOCUS_LABELS[session.focusScore] ?? null : null;
+    const productivity = session.productivityScore != null ? PRODUCTIVITY_LABELS[session.productivityScore] ?? null : null;
+    const date = formatDate(session.sessionStart || session.createdAt);
+    const startTime = formatTime(session.sessionStart);
+    const endTime = formatTime(session.sessionEnd);
 
     return (
-        <div className="bg-[#132e2a] rounded-2xl p-4 border border-[#1b3f3a] flex justify-between items-center">
-            <div>
-                <span className="font-bold text-cyan-400">{formatDuration(getSessionDurationSeconds(session))}</span>
-                <p className="text-xs text-gray-400 mt-1">
-                    {formatSessionDate(sessionDate)} · {session.sessionStart || 'Start unavailable'} - {session.sessionEnd || 'End unavailable'}
-                </p>
+        <div className="bg-[#132e2a] rounded-2xl p-4 border border-[#1b3f3a]">
+            <div className="flex items-center justify-between mb-2">
+                <span className="font-bold text-cyan-400 text-lg">{formatDuration(duration)}</span>
+                {date && <span className="text-xs text-gray-500">{date}</span>}
+            </div>
+
+            {startTime && endTime && (
+                <p className="text-xs text-gray-500 mb-3">{startTime} &mdash; {endTime}</p>
+            )}
+
+            <div className="flex gap-3">
+                {focus && (
+                    <span className="text-xs bg-[#091f1c] px-2.5 py-1 rounded-full border border-[#1b3f3a] text-gray-300">
+                        {focus.emoji} Focus: {focus.label}
+                    </span>
+                )}
+                {productivity && (
+                    <span className="text-xs bg-[#091f1c] px-2.5 py-1 rounded-full border border-[#1b3f3a] text-gray-300">
+                        {productivity.emoji} Productivity: {productivity.label}
+                    </span>
+                )}
             </div>
         </div>
     );

@@ -4,7 +4,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import AppShell from "@components/AppShell";
 import BottomNav, { TabId } from "@components/BottomNav";
-import ComingSoon from "@components/ComingSoon";
 import HomeDashboard from "@pages/HomeDashboard";
 import TaskManager from "@pages/TasksManager";
 import FocusTimer from "@pages/FocusTimer";
@@ -13,6 +12,7 @@ import { getAuthRedirectUrl } from "@lib/authRedirect";
 import { sessionStoreActions, useSessionStore } from "@lib/sessionStore";
 import SignOutButton from "@components/SignOutButton";
 import Analytics from "@pages/Analytics";
+import CalendarPage from "@pages/Calendar";
 import ProfileButton from "@components/ProfileButton";
 import Loading from "@components/Loading";
 import { extractCalendarCredentials, getGoogleCalendarOAuthOptions } from "@lib/calendarAuth";
@@ -667,12 +667,7 @@ export default function App() {
           <Analytics selectedCourseCode={selectedCourseCode} />
         );
       case "calendar":
-        return (
-          <ComingSoon
-            title="Calendar"
-            description="Your schedule and deadlines will appear here."
-          />
-        );
+        return <CalendarPage />;
       default:
         return <HomeDashboard studentName={studentName} />;
     }

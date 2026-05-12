@@ -79,14 +79,14 @@ function getTotalFocusHours(sessions: FocusSession[]) {
 }
 
 export function useFocusSessions(studentId: string | number | null): UseFocusSessionsResult {
-    const [recentSessions, setRecentSessions] = useState<FocusSession[]>([]);
+    const [allSessions, setAllSessions] = useState<FocusSession[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const refresh = useCallback(async () => {
         if (studentId == null) {
-            setRecentSessions([]);
+            setAllSessions([]);
             setError(null);
             setIsLoading(false);
             return;
@@ -103,7 +103,7 @@ export function useFocusSessions(studentId: string | number | null): UseFocusSes
                 'Unable to load recent sessions'
             );
 
-            setRecentSessions(normalizeSessions(payload));
+            setAllSessions(normalizeSessions(payload));
             setError(null);
         } catch (errorValue: unknown) {
             setError(errorValue instanceof Error ? errorValue.message : 'Unable to load recent sessions');
@@ -156,7 +156,19 @@ export function useFocusSessions(studentId: string | number | null): UseFocusSes
         }
     };
 
-    const totalFocusHours = useMemo(() => getTotalFocusHours(recentSessions), [recentSessions]);
+    const recentSessions = useMemo(() => allSessions.slice(0, 2), [allSessions]);
+
+    const totalFocusHours = useMemo(() => {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+        const weekSessions = allSessions.filter((session) => {
+            const sessionDate = new Date(session.sessionStart || session.createdAt);
+            return !Number.isNaN(sessionDate.getTime()) && sessionDate >= oneWeekAgo;
+        });
+
+        return getTotalFocusHours(weekSessions);
+    }, [allSessions]);
 
     return {
         recentSessions,

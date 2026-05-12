@@ -9,11 +9,11 @@ export default function FocusSummaryCard({ totalFocusHours }: FocusSummaryCardPr
                 <span className="text-cyan-400 text-2xl font-bold">⏱</span>
             </div>
             <div>
-                <h3 className="text-sm font-medium text-gray-400 mb-1">Recent Focus</h3>
+                <h3 className="text-sm font-medium text-gray-400 mb-1">Focus This Week</h3>
                 <p className="text-2xl font-bold text-white">
                     {totalFocusHours} <span className="text-sm font-normal text-gray-400">hours</span>
                 </p>
-                <p className="text-xs text-cyan-400 font-bold mt-1">Based on your saved focus sessions.</p>
+                <p className="text-xs text-cyan-400 font-bold mt-1">Over the last 7 days.</p>
             </div>
         </section>
     );

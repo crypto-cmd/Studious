@@ -1,7 +1,6 @@
 "use client";
 import { useMemo, useState } from 'react';
 import { ListTodo } from 'lucide-react';
-import XpBanner from '@components/XpBanner';
 import { useSessionStore } from '@lib/sessionStore';
 import { useTaskSummary } from '@hooks/useTaskSummary';
 import { useTaskManager } from '@hooks/useTaskManager';
@@ -22,7 +21,7 @@ export default function TaskManager({ initialCourseCode, initialAssignmentId }: 
     const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null);
     const [editingAssignmentTitle, setEditingAssignmentTitle] = useState('');
     const [editingAssignmentDueDate, setEditingAssignmentDueDate] = useState('');
-    const { completedCount, totalCount, totalXp, level, incrementCompleted } = useTaskSummary(studentId);
+    const { completedCount, totalCount, incrementCompleted } = useTaskSummary(studentId);
     const {
         courses,
         selectedCourse,
@@ -122,8 +121,6 @@ export default function TaskManager({ initialCourseCode, initialAssignmentId }: 
                 </h1>
                 <p className="text-gray-400 text-sm mt-1">Break down overwhelming assignments.</p>
             </header>
-
-            <XpBanner level={level} xp={totalXp} completed={completedCount} total={totalCount} />
 
             <TaskCourseSelect
                 courses={courses}

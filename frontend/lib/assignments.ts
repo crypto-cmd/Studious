@@ -1,7 +1,6 @@
 export type AssignmentTask = {
     id: string;
     description: string;
-    xp: number;
     completed: boolean;
 };
 
@@ -126,7 +125,6 @@ export function normalizeAssignments(payload: unknown): Assignment[] {
                         ? taskRecord.id
                         : `${String(assignmentRecord.id ?? index)}-${taskIndex}`,
                     description: typeof taskRecord.task === 'string' ? taskRecord.task : 'Untitled task',
-                    xp: Number.isFinite(Number(taskRecord.xp)) ? Number(taskRecord.xp) : 0,
                     completed: Boolean(taskRecord.completed),
                 };
             })

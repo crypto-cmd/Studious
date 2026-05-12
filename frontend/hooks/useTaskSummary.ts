@@ -1,15 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { apiRequest } from '@hooks/useApi';
 
 type TaskSummary = {
     completedCount: number;
     totalCount: number;
-    totalXp: number;
 };
 
 type AssignmentTask = {
     completed: boolean;
-    xp: number;
 };
 
 type Assignment = {
@@ -23,7 +21,6 @@ type UseTaskSummaryOptions = {
 const EMPTY_SUMMARY: TaskSummary = {
     completedCount: 0,
     totalCount: 0,
-    totalXp: 0,
 };
 
 function normalizeAssignments(payload: unknown): Assignment[] {
@@ -43,7 +40,6 @@ function normalizeAssignments(payload: unknown): Assignment[] {
                 const taskRecord = taskRaw as Record<string, unknown>;
                 return {
                     completed: Boolean(taskRecord.completed),
-                    xp: Number.isFinite(Number(taskRecord.xp)) ? Number(taskRecord.xp) : 0,
                 };
             })
             : [];
@@ -138,12 +134,10 @@ export function useTaskSummary(studentId: string | number | null, options?: UseT
 
                 const allTasks = allAssignments.flatMap((assignment) => assignment.tasks);
                 const completedTasks = allTasks.filter((task) => task.completed).length;
-                const xpSum = allTasks.reduce((sum, task) => sum + task.xp, 0);
 
                 setSummary({
                     completedCount: completedTasks,
                     totalCount: allTasks.length,
-                    totalXp: xpSum,
                 });
             })
             .catch(() => {
@@ -158,8 +152,6 @@ export function useTaskSummary(studentId: string | number | null, options?: UseT
             isCancelled = true;
         };
     }, [refreshKey, studentId]);
-
-    const level = useMemo(() => Math.max(1, Math.floor(summary.totalXp / 100) + 1), [summary.totalXp]);
 
     const incrementCompleted = (delta = 1) => {
         if (delta === 0) {
@@ -177,7 +169,6 @@ export function useTaskSummary(studentId: string | number | null, options?: UseT
 
     return {
         ...summary,
-        level,
         incrementCompleted,
     };
 }

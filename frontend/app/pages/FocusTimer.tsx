@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Hourglass, Play, Pause, Square, Clock } from 'lucide-react';
-import XpBanner from '@components/XpBanner';
 import { useSessionStore } from '@lib/sessionStore';
 import { useTaskSummary } from '@hooks/useTaskSummary';
 
@@ -32,7 +31,7 @@ function formatTime(seconds: number) {
 
 export default function FocusTimer() {
   const studentId = useSessionStore((snapshot) => snapshot.studentId);
-  const { completedCount, totalCount, totalXp, level } = useTaskSummary(studentId);
+  const { completedCount, totalCount } = useTaskSummary(studentId);
   const { recentSessions, totalFocusHours, isLoading, isSaving, error, saveSession } = useFocusSessions(studentId);
   const [isActive, setIsActive] = useState(false);
   const [pendingSessionSeconds, setPendingSessionSeconds] = useState<number | null>(null);
@@ -138,8 +137,6 @@ export default function FocusTimer() {
         </h1>
         <p className="text-gray-400 text-sm mt-1">Finding your natural productivity peaks.</p>
       </header>
-
-      <XpBanner level={level} xp={totalXp} completed={completedCount} total={totalCount} />
 
       {/* --- Active Timer (KDE Engine View) --- */}
       <section className="flex flex-col items-center justify-center py-8 mb-4">

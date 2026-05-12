@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Brain } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import XpBanner from '@components/XpBanner';
 import { useSessionStore } from '@lib/sessionStore';
 import { useTaskSummary } from '@hooks/useTaskSummary';
 import { useCourses, type Course } from '@hooks/useCourses';
@@ -39,7 +38,7 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const studentId = useSessionStore((snapshot) => snapshot.studentId);
-  const { completedCount, totalCount, totalXp, level } = useTaskSummary(studentId);
+  const { completedCount, totalCount } = useTaskSummary(studentId);
   const {
     courses,
     error: coursesError,
@@ -388,8 +387,6 @@ export default function HomeDashboard({ studentName }: HomeDashboardProps) {
           <p className="text-gray-500 text-xs mt-1 break-all">ID: {displayId}</p>
         </div>
       </header>
-
-      <XpBanner level={level} xp={totalXp} completed={completedCount} total={totalCount} />
 
       {calendarError && <p className="text-sm text-red-300 px-2 mb-3">{calendarError}</p>}
 
