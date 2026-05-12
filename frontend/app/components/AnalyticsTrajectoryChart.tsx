@@ -51,7 +51,7 @@ function buildTrajectoryPoints(course: Course | null): TrajectoryPoint[] {
 
     if (history.length > 0) {
         return history.map((entry, index) => ({
-            label: `${formatMonthLabel(entry.month)} ${index + 1}`,
+            label: formatMonthLabel(entry.month),
             value: entry.grade,
         }));
     }
@@ -86,7 +86,6 @@ function buildExpectedFinalLabel(course: Course | null) {
 
     const shortDate = parsedDate.toLocaleDateString(undefined, {
         month: 'short',
-        day: 'numeric',
     });
 
     return `${shortDate}`;

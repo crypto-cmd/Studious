@@ -1,7 +1,10 @@
+from datetime import datetime as dt
+
 from flask import Blueprint, request
 
 from data.db import db
-from routes.sync_routes import mark_sync_stale
+from routes.sync_routes import mark_sync_stale, _get_student_grade_input, _compute_final_predicted_grade
+from computations.GradePredictor import GradePredictor
 
 student_bp = Blueprint("student_bp", __name__)
 
@@ -258,6 +261,39 @@ def update_course(student_id, course_code):
 
     if has_grade_input_change:
         mark_sync_stale(student_id)
+
+        final_code = update_data.get("code", course_code)
+        try:
+            student_data = _get_student_grade_input(student_id, final_code)
+            if student_data is not None:
+                predicted_grade = GradePredictor().predict_grade(student_data)
+                existing = (
+                    db.table("courses")
+                    .select("predicted_grades")
+                    .eq("student_id", student_id)
+                    .eq("code", final_code)
+                    .execute()
+                )
+                if existing.data:
+                    predicted_grades = existing.data[0].get("predicted_grades", [])
+                    current_month = dt.now().month
+                    existing_idx = None
+                    for i, entry in enumerate(predicted_grades):
+                        if entry.get("month") == current_month:
+                            existing_idx = i
+                            break
+                    new_entry = {"grade": predicted_grade, "month": current_month}
+                    if existing_idx is not None:
+                        predicted_grades[existing_idx] = new_entry
+                    else:
+                        predicted_grades.append(new_entry)
+                    db.table("courses").update({
+                        "predicted_grades": predicted_grades,
+                        "current_predicted_grade": predicted_grade,
+                    }).eq("student_id", student_id).eq("code", final_code).execute()
+                _compute_final_predicted_grade(student_id, final_code)
+        except Exception:
+            pass
 
     return updated.data[0], 200
 

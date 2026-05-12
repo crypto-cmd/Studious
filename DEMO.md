@@ -97,6 +97,7 @@ This recalculates KDE peak focus windows, runs the full sync (grade predictions,
 | Task decomposition | Groq (Llama 3.3-70B) + Pinecone vector RAG |
 | Calendar scheduling | Circular KDE (Gaussian kernel) + Google Calendar API FreeBusy |
 | Grade prediction | TensorFlow Keras model (9 input features, trained on ~600 students) |
+| Model performance | R² = 0.844, MAE = 5.08, RMSE = 6.32 — "explains 84% of grade variance, average error ~5 points" |
 | Trajectory projection | Linear regression on monthly grade history |
 | Improvement engine | Genetic algorithm (tournament selection, crossover, mutation) |
 | Focus analytics | Kernel Density Estimation on circular time (theta in [0, 2π)) |
