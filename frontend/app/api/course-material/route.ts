@@ -35,9 +35,6 @@ export async function POST(request: Request) {
     body.append('file', file, file.name);
 
     const headers = new Headers();
-    if (process.env.HF_TOKEN) {
-        headers.set('Authorization', `Bearer ${process.env.HF_TOKEN}`);
-    }
 
     const endpoint = `${backendBaseUrl}/api/upload/${encodeURIComponent(String(studentId))}/${encodeURIComponent(courseCode)}/upload_source`;
 

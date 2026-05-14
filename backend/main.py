@@ -45,7 +45,7 @@ def handle_error(error):
 
 @app.route("/")
 def home():
-    return "Hello, World! This Flask app is deployed via GitHub Actions to Huggingface."
+    return "Studious Backend API"
 
 @app.route("/health")
 def health():

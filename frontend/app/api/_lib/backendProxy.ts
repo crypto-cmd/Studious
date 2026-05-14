@@ -16,10 +16,6 @@ function buildRequestInit(options: BackendRequestOptions): RequestInit {
 
     const headers = new Headers(options.headers);
 
-    if (process.env.HF_TOKEN) {
-        headers.set('Authorization', `Bearer ${process.env.HF_TOKEN}`);
-    }
-
     if (options.body !== undefined && !headers.has('Content-Type')) {
         headers.set('Content-Type', 'application/json');
     }
