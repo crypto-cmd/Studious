@@ -1,0 +1,75 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: studious-backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+    networks:
+      - studious
+    expose:
+      - "7860"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
+        - NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
+        - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+    container_name: studious-frontend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - studious
+    expose:
+      - "3000"
+    depends_on:
+      backend:
+        condition: service_started
+
+  marketing:
+    build:
+      context: ./marketing
+      dockerfile: Dockerfile
+    container_name: studious-marketing
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    networks:
+      - studious
+    expose:
+      - "3001"
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: studious-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      - DOMAIN=${DOMAIN:-studious.local}
+      - APP_DOMAIN=${APP_DOMAIN:-app.studious.local}
+    networks:
+      - studious
+    depends_on:
+      - backend
+      - frontend
+      - marketing
+
+networks:
+  studious:
+    name: studious
+    driver: bridge

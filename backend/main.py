@@ -1,6 +1,7 @@
 import os
 
 from flask import Flask, jsonify, redirect, send_file
+from flask_cors import CORS
 from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
 
@@ -17,6 +18,7 @@ from routes.sync_routes import sync_bp
 load_dotenv()  # Load environment variables from .env file
 
 app = Flask(__name__)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 app.register_blueprint(assignment_bp, url_prefix="/api/assignments")
 app.register_blueprint(trajectory_bp, url_prefix="/api/trajectory")
@@ -44,6 +46,10 @@ def handle_error(error):
 @app.route("/")
 def home():
     return "Hello, World! This Flask app is deployed via GitHub Actions to Huggingface."
+
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
 
 
 if __name__ == "__main__":
