@@ -249,7 +249,7 @@ health_check() {
     fi
 
     info "Checking frontend..."
-    FRONTEND=$(remote -- "curl -s -o /dev/null -w '%{http_code}' http://localhost/" -H "Host: $APP_DOMAIN" 2>/dev/null || echo "failed")
+    FRONTEND=$(remote -- "curl -s -o /dev/null -w '%{http_code}' -H 'Host: $APP_DOMAIN' http://localhost/" 2>/dev/null || echo "failed")
     if [ "$FRONTEND" = "200" ]; then
         ok "Frontend ($APP_DOMAIN) → 200"
     else
@@ -257,7 +257,7 @@ health_check() {
     fi
 
     info "Checking marketing..."
-    MARKETING=$(remote -- "curl -s -o /dev/null -w '%{http_code}' http://localhost/" -H "Host: $DOMAIN" 2>/dev/null || echo "failed")
+    MARKETING=$(remote -- "curl -s -o /dev/null -w '%{http_code}' -H 'Host: $DOMAIN' http://localhost/" 2>/dev/null || echo "failed")
     if [ "$MARKETING" = "200" ]; then
         ok "Marketing ($DOMAIN) → 200"
     else
